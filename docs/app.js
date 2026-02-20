@@ -249,7 +249,7 @@ function buildTaskCard(task, examLabel) {
     <div class="task-body">
       ${examLabel ? `<div class="exam-ref">${examLabel}</div>` : ''}
       ${tags.length ? `<div class="task-tags">${tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
-      <div class="task-text">${esc(task.content)}</div>
+      <div class="task-text">${formatTask(task.content)}</div>
       <div class="task-actions">
         <button class="btn-task btn-e">🔍 Erklären</button>
         <button class="btn-task btn-s">💡 Musterlösung</button>
@@ -601,6 +601,108 @@ function setupEvents() {
   document.addEventListener('click', e => {
     if (!e.target.closest('.search-wrap')) $('searchDropdown').classList.add('hidden');
   });
+}
+
+// ── Task content formatter ────────────────────────────────────────────────
+/**
+ * Wandelt rohen Aufgaben-Text in strukturiertes HTML um.
+ * Erkennt: Hauptfragen (a)/b)/c)), Unterfragen (aa)/ab)), Punkte-Badges,
+ * Aufzählungen (-), Abschnittsüberschriften (Wort:) und Code-Blöcke.
+ */
+function formatTask(raw) {
+  const lines = raw.split('\n');
+  const out = [];
+  let i = 0;
+
+  // Sammelt aufeinanderfolgende Bullet-Zeilen zusammen
+  function flushBullets(bullets) {
+    if (!bullets.length) return;
+    out.push(`<ul class="task-bullets">${bullets.map(b => `<li>${inlineFormat(b)}</li>`).join('')}</ul>`);
+    bullets.length = 0;
+  }
+
+  const bullets = [];
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    i++;
+
+    if (!line) {
+      flushBullets(bullets);
+      continue;
+    }
+
+    // ── Hauptfrage: Zeile ist nur "a)" / "b)" / "c)" usw. ──
+    if (/^[a-z]\)$/.test(line)) {
+      flushBullets(bullets);
+      // Nächste nicht-leere Zeile ist der Fragetext
+      let questionText = '';
+      while (i < lines.length && !lines[i].trim()) i++;
+      if (i < lines.length) {
+        const next = lines[i].trim();
+        // Kein Punkt-Satz und keine neue Unterfrage einlesen
+        if (next && !/^\([0-9]/.test(next) && !/^[a-z]{2}\)/.test(next)) {
+          questionText = next;
+          i++;
+        }
+      }
+      out.push(`<div class="tq-main"><span class="tq-label">${esc(line)}</span><span class="tq-text">${inlineFormat(questionText)}</span></div>`);
+      continue;
+    }
+
+    // ── Unterfrage: Zeile beginnt mit "aa)" / "ab)" / "ba)" usw. ──
+    const subMatch = line.match(/^([a-z]{2})\)\s*(.*)/);
+    if (subMatch) {
+      flushBullets(bullets);
+      const [, label, rest] = subMatch;
+      // Punkte aus dem rest extrahieren
+      const pts = rest.match(/\((\d+)\s*Punkte?\)/i);
+      const text = rest.replace(/\(\d+\s*Punkte?\)/i, '').trim();
+      const ptsHtml = pts ? `<span class="tq-pts">${pts[1]} Pkt.</span>` : '';
+      out.push(`<div class="tq-sub"><span class="tq-sub-label">${esc(label)})</span><span class="tq-sub-text">${inlineFormat(text)}</span>${ptsHtml}</div>`);
+      continue;
+    }
+
+    // ── Punkte-Badge alleine auf einer Zeile: "(3 Punkte)" ──
+    const ptsAlone = line.match(/^\((\d+)\s*Punkte?\)$/i);
+    if (ptsAlone) {
+      flushBullets(bullets);
+      out.push(`<div class="tq-pts-line"><span class="tq-pts">${ptsAlone[1]} Punkte</span></div>`);
+      continue;
+    }
+
+    // ── Aufzählung: beginnt mit "- " oder "• " ──
+    if (/^[-•]\s+/.test(line)) {
+      bullets.push(line.replace(/^[-•]\s+/, ''));
+      continue;
+    }
+
+    // ── Abschnittsüberschrift: kurze Zeile die mit ":" endet ──
+    if (line.endsWith(':') && line.length < 60 && !line.includes('(')) {
+      flushBullets(bullets);
+      out.push(`<div class="tq-section">${esc(line)}</div>`);
+      continue;
+    }
+
+    // ── Normaler Text ──
+    flushBullets(bullets);
+    out.push(`<p class="tq-para">${inlineFormat(line)}</p>`);
+  }
+
+  flushBullets(bullets);
+  return out.join('');
+}
+
+/** Inline-Formatierung: Punkte fett, Schlüsselbegriffe hervorheben */
+function inlineFormat(text) {
+  return esc(text)
+    // (X Punkte) → Badge
+    .replace(/\((\d+)\s*Punkte?\)/gi, '<span class="tq-pts">$1 Pkt.</span>')
+    // Variante 1 / Variante 2 → hervorheben
+    .replace(/(Variante\s+\d+)/g, '<strong>$1</strong>')
+    // SQL-Keywords → code
+    .replace(/\b(SELECT|FROM|WHERE|JOIN|GROUP BY|HAVING|ORDER BY|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|INNER|LEFT|RIGHT|ON|AS)\b/g,
+      '<code class="sql-kw">$1</code>');
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────
