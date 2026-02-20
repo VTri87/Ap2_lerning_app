@@ -48,7 +48,7 @@ Antworte immer auf Deutsch. Strukturiere Antworten klar mit Überschriften und C
 let exams         = [];
 let apiKey        = localStorage.getItem('ap2_key') || '';
 let chatHistory   = [];    // messages array for Claude API
-let chatMin       = false;
+let chatMin       = true;   // chat starts hidden (right sidebar)
 let currentExamId = null;
 let searchTimer   = null;
 
@@ -641,7 +641,6 @@ function appendMsg(role, text, streaming = false) {
 function toggleChat() {
   chatMin = !chatMin;
   $('chat').classList.toggle('minimized', chatMin);
-  $('chatToggle').textContent = chatMin ? '▲' : '▼';
 }
 
 // ── Search ────────────────────────────────────────────────────────────────
