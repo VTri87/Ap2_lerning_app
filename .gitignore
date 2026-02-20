@@ -1,0 +1,32 @@
+# Nur docs/ wird gepusht – alles andere ignorieren
+
+# Python Backend (wird nicht gebraucht auf GitHub Pages)
+app.py
+parse_pdf.py
+build_static_data.py
+start.bat
+requirements.txt
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Umgebung & Secrets
+.env
+*.env
+
+# Große Dateien
+*.pdf
+content.txt
+
+# Lokale Daten (nur docs/data/ zählt)
+/data/
+
+# Flask static (eigene lokale Version)
+/static/
+
+# Sonstiges
+*.log
+.DS_Store
+Thumbs.db

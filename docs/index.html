@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AP2 Teil 2 – Algorithmen & Datenbanken | FIAE Lernplattform</title>
+  <meta name="description" content="Kostenlose Lernplattform für den AP2 Teil 2 der IHK-Prüfung (FIAE). Prüfungsaufgaben 2021–2024 mit KI-Lernassistent." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">AP2 <span>Teil 2</span></div>
+    <button class="icon-btn" id="sidebarToggle" title="Sidebar schließen">‹</button>
+  </div>
+
+  <div class="search-wrap">
+    <input type="text" id="searchInput" placeholder="Aufgaben durchsuchen…" autocomplete="off" />
+    <div class="search-dropdown hidden" id="searchDropdown"></div>
+  </div>
+
+  <nav id="sidebarNav" class="sidebar-nav">
+    <div class="nav-placeholder">Lade…</div>
+  </nav>
+
+  <div class="sidebar-foot">
+    <button class="btn-settings" id="btnSettings">⚙ API-Key einrichten</button>
+  </div>
+</aside>
+
+<!-- ── Main ────────────────────────────────────────────────────── -->
+<main class="main" id="main">
+  <button class="sidebar-open-btn hidden" id="sidebarOpenBtn">☰</button>
+
+  <!-- Welcome -->
+  <section class="view" id="viewHome">
+    <div class="hero">
+      <div class="hero-badge">AP2 · FIAE · IHK · Teil 2</div>
+      <h1>Entwicklung &amp; Umsetzung<br>von Algorithmen</h1>
+      <p class="hero-sub">Echte Prüfungsaufgaben 2021 – 2024 · KI-Lernassistent</p>
+    </div>
+
+    <div class="stats-row" id="statsRow"></div>
+
+    <h2 class="section-label">Themen</h2>
+    <div class="topic-grid" id="topicGrid"></div>
+
+    <h2 class="section-label" style="margin-top:40px">Prüfungen</h2>
+    <div class="exam-grid" id="examGrid"></div>
+  </section>
+
+  <!-- Exam -->
+  <section class="view hidden" id="viewExam">
+    <button class="back-btn" id="examBack">← Übersicht</button>
+    <h2 id="examHeading"></h2>
+    <div class="exam-meta-bar">
+      <span id="examMeta" class="chip"></span>
+      <button class="btn-accent" id="btnExamAI">🤖 KI-Überblick</button>
+    </div>
+    <div id="taskList"></div>
+  </section>
+
+  <!-- Topic -->
+  <section class="view hidden" id="viewTopic">
+    <button class="back-btn" id="topicBack">← Übersicht</button>
+    <h2 id="topicHeading"></h2>
+    <div class="theory-box" id="theoryBox"></div>
+    <h3 class="section-label" style="margin-top:28px">Aufgaben aus echten Prüfungen</h3>
+    <div id="topicTaskList"></div>
+  </section>
+
+  <!-- Search -->
+  <section class="view hidden" id="viewSearch">
+    <button class="back-btn" id="searchBack">← Übersicht</button>
+    <h2 id="searchHeading">Suche</h2>
+    <div id="searchList"></div>
+  </section>
+</main>
+
+<!-- ── Chat Widget ──────────────────────────────────────────────── -->
+<div class="chat" id="chat">
+  <div class="chat-head" id="chatHead">
+    <div class="chat-head-info">
+      <span>🤖</span>
+      <div>
+        <div class="chat-title">KI-Lernassistent</div>
+        <div class="chat-sub">AP2 Teil 2 Spezialist</div>
+      </div>
+    </div>
+    <div class="chat-head-btns">
+      <button id="chatClear" title="Leeren">🗑</button>
+      <button id="chatToggle">▼</button>
+    </div>
+  </div>
+
+  <div class="chat-body" id="chatBody">
+    <div class="chat-msgs" id="chatMsgs">
+      <div class="msg ai">
+        <div class="bubble">Hallo! Ich bin spezialisiert auf den <strong>AP2 Teil 2</strong>.
+Ich helfe dir bei Algorithmen, SQL, UML, Rekursion, Testing und mehr.
+Was möchtest du üben?</div>
+      </div>
+    </div>
+
+    <div class="quick-btns" id="quickBtns">
+      <button class="qbtn" data-q="Erkläre Bubble Sort vs Selection Sort mit Beispiel und Pseudocode.">Sortieralgorithmen</button>
+      <button class="qbtn" data-q="Wie führe ich einen Schreibtischtest für rekursive Algorithmen durch? Zeig ein Beispiel.">Schreibtischtest Rekursion</button>
+      <button class="qbtn" data-q="Erkläre INNER JOIN, LEFT JOIN und GROUP BY in SQL mit Beispielen.">SQL JOINs & GROUP BY</button>
+      <button class="qbtn" data-q="Wie erstelle ich ein UML-Aktivitätsdiagramm? Elemente und Regeln erklären.">UML Aktivitätsdiagramm</button>
+    </div>
+
+    <div class="chat-input-row">
+      <textarea id="chatInput" placeholder="Frage stellen… (Enter = senden)" rows="2"></textarea>
+      <button id="chatSend">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ───────────────────────────────────────────── -->
+<div class="overlay hidden" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>⚙ KI-Assistent einrichten</h3>
+      <button id="modalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="keyStatus" class="key-status"></div>
+      <label>Anthropic API-Key</label>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" />
+      <p class="hint">
+        Der Key wird nur in deinem Browser gespeichert (localStorage).<br>
+        Erstellen: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com →</a>
+      </p>
+      <button class="btn-primary" id="btnSaveKey">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
