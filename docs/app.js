@@ -254,6 +254,7 @@ function buildTaskCard(task, examLabel) {
         <button class="btn-task btn-e">🔍 Erklären</button>
         <button class="btn-task btn-s">💡 Musterlösung</button>
         <button class="btn-task btn-t">📌 Tipps</button>
+        <button class="btn-task btn-check">✏️ Lösung prüfen</button>
       </div>
     </div>
   `;
@@ -275,7 +276,215 @@ function buildTaskCard(task, examLabel) {
     askAI(`Was sind typische Fehler und wichtige Tipps für die ${task.num}. Aufgabe${label ? ` aus "${label}"` : ''}?\n\n${task.content}`);
   });
 
+  card.querySelector('.btn-check').addEventListener('click', e => {
+    e.stopPropagation();
+    toggleAnswerPanel(card, task, label);
+  });
+
   return card;
+}
+
+// ── Answer panel (Lösung einreichen & prüfen) ─────────────────────────────
+function toggleAnswerPanel(card, task, label) {
+  let panel = card.querySelector('.answer-panel');
+  if (!panel) {
+    panel = createAnswerPanel(task, label);
+    card.querySelector('.task-body').appendChild(panel);
+  }
+  const willShow = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !willShow);
+  if (willShow) panel.querySelector('.ap-text').focus();
+}
+
+function createAnswerPanel(task, label) {
+  const panel = document.createElement('div');
+  panel.className = 'answer-panel hidden';
+  panel.innerHTML = `
+    <div class="ap-header">✏️ Deine Lösung einreichen &amp; prüfen lassen</div>
+    <textarea class="ap-text" rows="4" placeholder="Deine Antwort, Pseudocode, SQL-Abfrage, Erklärung…"></textarea>
+    <div class="ap-img-zone">
+      <div class="ap-img-hint">📎 Bild hochladen (draw.io PNG, UML, Foto) — klicken oder reinziehen</div>
+      <img class="ap-img-preview" alt="Vorschau" style="display:none">
+      <button type="button" class="ap-img-clear" style="display:none">× Bild entfernen</button>
+      <input type="file" class="ap-img-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none">
+    </div>
+    <div class="ap-actions">
+      <button type="button" class="btn-task ap-submit">🔍 Von KI prüfen lassen</button>
+      <button type="button" class="btn-task ap-cancel">Abbrechen</button>
+    </div>
+    <div class="ap-feedback hidden"></div>
+  `;
+
+  const imgZone    = panel.querySelector('.ap-img-zone');
+  const imgInput   = panel.querySelector('.ap-img-input');
+  const imgPreview = panel.querySelector('.ap-img-preview');
+  const imgClear   = panel.querySelector('.ap-img-clear');
+  const imgHint    = panel.querySelector('.ap-img-hint');
+  let imageData = null;  // base64 string (without data: prefix)
+  let imageType = null;  // MIME type
+
+  function loadImageFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const [, data] = ev.target.result.split(',');
+      imageData = data;
+      imageType = file.type;
+      imgPreview.src = ev.target.result;
+      imgPreview.style.display = 'block';
+      imgClear.style.display   = 'inline-block';
+      imgHint.style.display    = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearImage() {
+    imageData = null; imageType = null;
+    imgPreview.style.display = 'none'; imgPreview.src = '';
+    imgClear.style.display   = 'none';
+    imgHint.style.display    = '';
+    imgInput.value = '';
+  }
+
+  imgZone.addEventListener('click', e => {
+    if (!e.target.closest('.ap-img-clear')) imgInput.click();
+  });
+  imgZone.addEventListener('dragover', e => { e.preventDefault(); imgZone.classList.add('dragover'); });
+  imgZone.addEventListener('dragleave', () => imgZone.classList.remove('dragover'));
+  imgZone.addEventListener('drop', e => {
+    e.preventDefault(); imgZone.classList.remove('dragover');
+    loadImageFile(e.dataTransfer.files[0]);
+  });
+  imgInput.addEventListener('change', () => loadImageFile(imgInput.files[0]));
+  imgClear.addEventListener('click', e => { e.stopPropagation(); clearImage(); });
+
+  panel.querySelector('.ap-cancel').addEventListener('click', () => {
+    panel.classList.add('hidden');
+  });
+
+  panel.querySelector('.ap-submit').addEventListener('click', () => {
+    if (!apiKey) { showModal(); return; }
+    const text = panel.querySelector('.ap-text').value.trim();
+    if (!text && !imageData) {
+      panel.querySelector('.ap-text').focus();
+      return;
+    }
+    evaluateAnswer(panel, task, label, text, imageData, imageType);
+  });
+
+  return panel;
+}
+
+const EVAL_SYSTEM_PROMPT = `Du bist ein erfahrener AP2-Prüfungsexperte für Fachinformatiker Anwendungsentwicklung (FIAE). Bewerte die eingereichte Schülerlösung sachlich und konstruktiv.
+
+Dein Bewertungsformat (immer auf Deutsch):
+Beginne mit einer klaren Einschätzung in der ersten Zeile:
+✅ Richtig  ODER  ⚠️ Teilweise richtig  ODER  ❌ Falsch
+
+Danach strukturiert:
+**Was korrekt ist:** (falls vorhanden, sonst weglassen)
+**Was fehlt oder falsch ist:** (konkret benennen)
+**Tipp zur Verbesserung:** (einen konkreten Hinweis)
+
+Spezifische Hinweise nach Aufgabentyp:
+- UML/Aktivitätsdiagramm: Prüfe Startknoten, Endknoten, Aktionen, Entscheidungsknoten (Rauten), Zusammenführungen, Swimlanes und die logische Abfolge
+- SQL: Prüfe Syntax, Tabellenauswahl, JOIN-Bedingungen, WHERE/HAVING, GROUP BY, Spaltenausgaben
+- Pseudocode/Algorithmus: Prüfe Logik, Schleifen, Abbruchbedingungen, Variablen, Randwerte
+- ERM/Relationales Modell: Prüfe Entitäten, Attribute, Kardinalitäten, Primär- und Fremdschlüssel
+
+Sei präzise und lehrreich. Falls ein Bild eingereicht wurde, analysiere es genau.`;
+
+async function evaluateAnswer(panel, task, label, textAnswer, imageData, imageType) {
+  const feedback  = panel.querySelector('.ap-feedback');
+  const submitBtn = panel.querySelector('.ap-submit');
+
+  feedback.classList.remove('hidden');
+  feedback.className = 'ap-feedback streaming';
+  feedback.textContent = '';
+  submitBtn.disabled = true;
+
+  const taskContext = `Aufgabe ${task.num}${label ? ` aus „${label}"` : ''} (${task.points} Punkte):\n${task.content.slice(0, 1500)}`;
+  const answerNote = textAnswer
+    ? `\n\nMeine Lösung:\n${textAnswer}`
+    : '\n\nMeine Lösung: (siehe eingefügtes Bild)';
+
+  const userContent = imageData
+    ? [
+        { type: 'image', source: { type: 'base64', media_type: imageType, data: imageData } },
+        { type: 'text', text: `${taskContext}${answerNote}\n\nBitte bewerte meine Lösung.` },
+      ]
+    : `${taskContext}${answerNote}\n\nBitte bewerte meine Lösung.`;
+
+  try {
+    const res = await fetch(CLAUDE_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: 1024,
+        stream: true,
+        system: EVAL_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: userContent }],
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 401) throw new Error('Ungültiger API-Key. Bitte prüfen.');
+      throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (raw === '[DONE]') break;
+        try {
+          const ev = JSON.parse(raw);
+          if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
+            fullText += ev.delta.text;
+            feedback.textContent = fullText;
+          }
+        } catch {}
+      }
+    }
+
+    feedback.className = 'ap-feedback';
+    feedback.innerHTML = formatFeedback(fullText);
+
+  } catch (e) {
+    feedback.className = 'ap-feedback';
+    feedback.innerHTML = `<span style="color:var(--red)">❌ Fehler: ${esc(e.message)}</span>`;
+    if (e.message.includes('API-Key')) showModal();
+  }
+
+  submitBtn.disabled = false;
+}
+
+function formatFeedback(text) {
+  let html = esc(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(✅[^\n<]*)/g, '<span class="fb-ok">$1</span>')
+    .replace(/(⚠️[^\n<]*)/g, '<span class="fb-warn">$1</span>')
+    .replace(/(❌[^\n<]*)/g, '<span class="fb-err">$1</span>')
+    .replace(/\n\n+/g, '</p><p class="fb-p">')
+    .replace(/\n/g, '<br>');
+  return `<p class="fb-p">${html}</p>`;
 }
 
 function detectTags(content) {

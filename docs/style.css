@@ -288,6 +288,46 @@ code.sql-kw{
 .btn-task{background:var(--bg3);border:1px solid var(--border);color:var(--dim);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;transition:all .15s}
 .btn-task:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
 
+/* ── Answer panel (Lösung einreichen & prüfen) ───────────────────── */
+.answer-panel{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}
+.answer-panel.hidden{display:none}
+.ap-header{font-size:13px;font-weight:700;color:var(--accent2);margin-bottom:10px}
+.ap-text{
+  width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;
+  resize:vertical;min-height:80px;outline:none;transition:border-color .15s;
+}
+.ap-text:focus{border-color:var(--accent2)}
+.ap-img-zone{
+  margin-top:10px;border:2px dashed var(--border);border-radius:8px;
+  padding:14px;text-align:center;cursor:pointer;transition:all .15s;
+}
+.ap-img-zone:hover,.ap-img-zone.dragover{border-color:var(--accent2);background:rgba(124,91,246,.05)}
+.ap-img-hint{font-size:12px;color:var(--dim);pointer-events:none}
+.ap-img-preview{max-width:100%;max-height:200px;border-radius:6px;margin:8px auto;display:block}
+.ap-img-clear{
+  background:none;border:1px solid var(--border);color:var(--dim);
+  cursor:pointer;border-radius:6px;padding:3px 10px;font-size:12px;margin-top:6px;
+  transition:all .15s;
+}
+.ap-img-clear:hover{border-color:var(--red);color:var(--red)}
+.ap-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.ap-submit{background:rgba(124,91,246,.15)!important;border-color:var(--accent2)!important;color:var(--accent2)!important}
+.ap-submit:hover{background:rgba(124,91,246,.3)!important}
+.ap-submit:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+.ap-feedback{
+  margin-top:14px;background:var(--bg3);
+  border:1px solid var(--border);border-left:3px solid var(--accent2);
+  border-radius:0 8px 8px 0;padding:14px 16px;
+  font-size:13px;line-height:1.75;color:var(--text);
+}
+.ap-feedback.hidden{display:none}
+.ap-feedback.streaming::after{content:'▋';animation:blink .7s step-end infinite}
+.ap-feedback p.fb-p{margin-bottom:8px}
+.fb-ok{color:var(--green);font-weight:700}
+.fb-warn{color:#fbbf24;font-weight:700}
+.fb-err{color:var(--red);font-weight:700}
+
 /* ── Theory box ───────────────────────────────────────────────────── */
 .theory-box{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--r);padding:20px 24px;white-space:pre-wrap;font-size:14px;line-height:1.8;color:var(--text)}
 .theory-box.loading{color:var(--muted);font-style:italic}
