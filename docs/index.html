@@ -135,12 +135,32 @@ Was möchtest du üben?</div>
     </div>
     <div class="modal-body">
       <div id="keyStatus" class="key-status"></div>
-      <label>Anthropic API-Key</label>
-      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" />
+
+      <label>Aktiver KI-Anbieter (nur einer aktiv)</label>
+      <div style="display:flex; gap:12px; margin:8px 0 14px 0; flex-wrap:wrap;">
+        <label style="display:flex; align-items:center; gap:6px;">
+          <input type="radio" name="apiProvider" value="claude" id="providerClaude" />
+          Claude (Anthropic)
+        </label>
+        <label style="display:flex; align-items:center; gap:6px;">
+          <input type="radio" name="apiProvider" value="openai" id="providerOpenAI" />
+          ChatGPT (OpenAI)
+        </label>
+      </div>
+
+      <label>Anthropic API-Key (Claude)</label>
+      <input type="password" id="apiKeyClaude" placeholder="sk-ant-api03-…" />
       <p class="hint">
-        Der Key wird nur in deinem Browser gespeichert (localStorage).<br>
         Erstellen: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com →</a>
       </p>
+
+      <label>OpenAI API-Key (ChatGPT)</label>
+      <input type="password" id="apiKeyOpenAI" placeholder="sk-…" />
+      <p class="hint">
+        Erstellen: <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys →</a><br>
+        Keys werden nur lokal im Browser gespeichert (localStorage).
+      </p>
+
       <button class="btn-primary" id="btnSaveKey">Speichern</button>
     </div>
   </div>

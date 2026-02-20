@@ -5,6 +5,8 @@
 // ── Konfiguration ─────────────────────────────────────────────────────────
 const CLAUDE_MODEL   = 'claude-opus-4-6';
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+const OPENAI_MODEL   = 'gpt-4o-mini';
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const DATA_URL       = 'data/exams.json';   // Pfad zur Prüfungsdaten-Datei
 
 const TOPICS = [
@@ -46,11 +48,25 @@ Antworte immer auf Deutsch. Strukturiere Antworten klar mit Überschriften und C
 
 // ── State ─────────────────────────────────────────────────────────────────
 let exams         = [];
-let apiKey        = localStorage.getItem('ap2_key') || '';
-let chatHistory   = [];    // messages array for Claude API
+let claudeKey     = localStorage.getItem('ap2_claude_key') || localStorage.getItem('ap2_key') || '';
+let openaiKey     = localStorage.getItem('ap2_openai_key') || '';
+let aiProvider    = localStorage.getItem('ap2_provider') || (claudeKey ? 'claude' : (openaiKey ? 'openai' : 'claude'));
+let chatHistory   = [];    // messages array for active provider API
 let chatMin       = true;   // chat starts hidden (right sidebar)
 let currentExamId = null;
 let searchTimer   = null;
+
+function getProviderLabel(provider = aiProvider) {
+  return provider === 'openai' ? 'ChatGPT (OpenAI)' : 'Claude (Anthropic)';
+}
+
+function getActiveKey(provider = aiProvider) {
+  return provider === 'openai' ? openaiKey : claudeKey;
+}
+
+function hasActiveKey(provider = aiProvider) {
+  return !!getActiveKey(provider);
+}
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -181,7 +197,7 @@ function showTopicView(topic) {
 
   // Theory from Claude
   const box = $('theoryBox');
-  if (apiKey) {
+  if (hasActiveKey()) {
     box.textContent = 'KI erklärt das Thema…';
     box.className = 'theory-box loading';
     streamTheory(topic, box);
@@ -205,7 +221,7 @@ function showTopicView(topic) {
 }
 
 async function streamTheory(topic, container) {
-  if (!apiKey) return;
+  if (!hasActiveKey()) return;
   const prompt = `Erkläre das Thema "${topic.label}" kompakt für die AP2 Teil 2 (FIAE).
 
 Struktur:
@@ -221,7 +237,7 @@ Bleib prägnant und prüfungsrelevant.`;
   container.className = 'theory-box streaming';
 
   try {
-    await claudeStream(
+    await streamAI(
       [{ role: 'user', content: prompt }],
       chunk => { container.textContent += chunk; },
     );
@@ -363,7 +379,7 @@ function createAnswerPanel(task, label) {
   });
 
   panel.querySelector('.ap-submit').addEventListener('click', () => {
-    if (!apiKey) { showModal(); return; }
+    if (!hasActiveKey()) { showModal(); return; }
     const text = panel.querySelector('.ap-text').value.trim();
     if (!text && !imageData) {
       panel.querySelector('.ap-text').focus();
@@ -408,65 +424,16 @@ async function evaluateAnswer(panel, task, label, textAnswer, imageData, imageTy
     ? `\n\nMeine Lösung:\n${textAnswer}`
     : '\n\nMeine Lösung: (siehe eingefügtes Bild)';
 
-  const userContent = imageData
-    ? [
-        { type: 'image', source: { type: 'base64', media_type: imageType, data: imageData } },
-        { type: 'text', text: `${taskContext}${answerNote}\n\nBitte bewerte meine Lösung.` },
-      ]
-    : `${taskContext}${answerNote}\n\nBitte bewerte meine Lösung.`;
+  const evalPrompt = `${taskContext}${answerNote}\n\nBitte bewerte meine Lösung.`;
 
   try {
-    const res = await fetch(CLAUDE_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 1024,
-        stream: true,
-        system: EVAL_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      if (res.status === 401) throw new Error('Ungültiger API-Key. Bitte prüfen.');
-      throw new Error(err?.error?.message || `HTTP ${res.status}`);
-    }
-
-    const reader  = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
     let fullText = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const raw = line.slice(6).trim();
-        if (raw === '[DONE]') break;
-        try {
-          const ev = JSON.parse(raw);
-          if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
-            fullText += ev.delta.text;
-            feedback.textContent = fullText;
-          }
-        } catch {}
-      }
-    }
-
+    await streamAIForEvaluation(evalPrompt, imageData, imageType, chunk => {
+      fullText += chunk;
+      feedback.textContent = fullText;
+    });
     feedback.className = 'ap-feedback';
     feedback.innerHTML = formatFeedback(fullText);
-
   } catch (e) {
     feedback.className = 'ap-feedback';
     feedback.innerHTML = `<span style="color:var(--red)">❌ Fehler: ${esc(e.message)}</span>`;
@@ -510,13 +477,13 @@ function detectTags(content) {
  * @param {string}   [system]   - Optionaler System-Prompt (Default: SYSTEM_PROMPT)
  */
 async function claudeStream(messages, onChunk, system = SYSTEM_PROMPT) {
-  if (!apiKey) throw new Error('Kein API-Key. Bitte unter ⚙ einrichten.');
+  if (!claudeKey) throw new Error('Kein Claude API-Key. Bitte unter ⚙ einrichten.');
 
   const res = await fetch(CLAUDE_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
+      'x-api-key': claudeKey,
       'anthropic-version': '2023-06-01',
       // Erlaubt direkte Browser-Aufrufe
       'anthropic-dangerous-direct-browser-access': 'true',
@@ -533,7 +500,7 @@ async function claudeStream(messages, onChunk, system = SYSTEM_PROMPT) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msg = err?.error?.message || `HTTP ${res.status}`;
-    if (res.status === 401) throw new Error('Ungültiger API-Key. Bitte prüfen.');
+    if (res.status === 401) throw new Error('Ungültiger Claude API-Key. Bitte prüfen.');
     throw new Error(msg);
   }
 
@@ -563,6 +530,79 @@ async function claudeStream(messages, onChunk, system = SYSTEM_PROMPT) {
   }
 }
 
+async function openaiStream(messages, onChunk, system = SYSTEM_PROMPT) {
+  if (!openaiKey) throw new Error('Kein ChatGPT API-Key. Bitte unter ⚙ einrichten.');
+
+  const res = await fetch(OPENAI_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${openaiKey}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      stream: true,
+      messages: [{ role: 'system', content: system }, ...messages],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = err?.error?.message || `HTTP ${res.status}`;
+    if (res.status === 401) throw new Error('Ungültiger ChatGPT API-Key. Bitte prüfen.');
+    throw new Error(msg);
+  }
+
+  const reader  = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const raw = line.slice(6).trim();
+      if (raw === '[DONE]') return;
+      try {
+        const event = JSON.parse(raw);
+        const delta = event?.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string') onChunk(delta);
+      } catch {}
+    }
+  }
+}
+
+async function streamAI(messages, onChunk, system = SYSTEM_PROMPT) {
+  if (aiProvider === 'openai') return openaiStream(messages, onChunk, system);
+  return claudeStream(messages, onChunk, system);
+}
+
+async function streamAIForEvaluation(prompt, imageData, imageType, onChunk) {
+  if (aiProvider === 'openai') {
+    const content = [{ type: 'text', text: prompt }];
+    if (imageData && imageType) {
+      content.push({
+        type: 'image_url',
+        image_url: { url: `data:${imageType};base64,${imageData}` },
+      });
+    }
+    return openaiStream([{ role: 'user', content }], onChunk, EVAL_SYSTEM_PROMPT);
+  }
+
+  const content = imageData && imageType
+    ? [
+        { type: 'image', source: { type: 'base64', media_type: imageType, data: imageData } },
+        { type: 'text', text: prompt },
+      ]
+    : prompt;
+  return claudeStream([{ role: 'user', content }], onChunk, EVAL_SYSTEM_PROMPT);
+}
+
 // ── Chat ──────────────────────────────────────────────────────────────────
 function askAI(prompt) {
   if (chatMin) toggleChat();
@@ -575,7 +615,7 @@ async function sendChat() {
   const text = $('chatInput').value.trim();
   if (!text) return;
 
-  if (!apiKey) {
+  if (!hasActiveKey()) {
     showModal();
     return;
   }
@@ -604,7 +644,7 @@ async function sendChat() {
 
   try {
     let fullText = '';
-    await claudeStream(
+    await streamAI(
       chatHistory,
       chunk => {
         fullText += chunk;
@@ -715,26 +755,29 @@ function showView(name) {
 
 // ── Settings / API Key ────────────────────────────────────────────────────
 function showModal() {
-  $('apiKeyInput').value = apiKey;
+  $('apiKeyClaude').value = claudeKey;
+  $('apiKeyOpenAI').value = openaiKey;
+  const radio = document.querySelector(`input[name="apiProvider"][value="${aiProvider}"]`);
+  if (radio) radio.checked = true;
   updateKeyStatus();
   $('overlay').classList.remove('hidden');
 }
 
 function updateKeyStatus() {
   const ks = $('keyStatus');
-  if (apiKey) {
-    ks.textContent = '✓ API-Key gespeichert';
+  if (hasActiveKey()) {
+    ks.textContent = `KI aktiv: ${getProviderLabel()}`;
     ks.className = 'key-status ok';
   } else {
-    ks.textContent = '⚠ Kein API-Key – KI nicht verfügbar';
+    ks.textContent = `Kein aktiver API-Key für ${getProviderLabel()}`;
     ks.className = 'key-status err';
   }
 }
 
 function updateKeyBtn() {
   const btn = $('btnSettings');
-  if (apiKey) {
-    btn.textContent = '✓ KI aktiv';
+  if (hasActiveKey()) {
+    btn.textContent = `✓ KI aktiv (${aiProvider === 'openai' ? 'ChatGPT' : 'Claude'})`;
     btn.classList.add('active');
   } else {
     btn.textContent = '⚙ API-Key einrichten';
@@ -743,8 +786,10 @@ function updateKeyBtn() {
   // Sync sidebar KI indicator
   const dot    = $('sbKiDot');
   const status = $('sbKiStatus');
-  if (dot)    dot.className    = apiKey ? 'sb-ki-dot active' : 'sb-ki-dot';
-  if (status) status.textContent = apiKey ? 'Aktiv – klicken zum öffnen' : 'Kein API-Key – klicken zum einrichten';
+  if (dot)    dot.className    = hasActiveKey() ? 'sb-ki-dot active' : 'sb-ki-dot';
+  if (status) status.textContent = hasActiveKey()
+    ? `${getProviderLabel()} aktiv – klicken zum öffnen`
+    : `Kein API-Key für ${getProviderLabel()} – klicken zum einrichten`;
 }
 
 // ── Events ────────────────────────────────────────────────────────────────
@@ -794,7 +839,7 @@ function setupEvents() {
 
   // Sidebar KI entry
   $('sbKi').addEventListener('click', () => {
-    if (!apiKey) { showModal(); return; }
+    if (!hasActiveKey()) { showModal(); return; }
     // Unminimize chat if needed, then focus input
     if (chatMin) toggleChat();
     $('chatInput').focus();
@@ -805,8 +850,19 @@ function setupEvents() {
   $('modalClose').addEventListener('click', () => $('overlay').classList.add('hidden'));
   $('overlay').addEventListener('click', e => { if (e.target === $('overlay')) $('overlay').classList.add('hidden'); });
   $('btnSaveKey').addEventListener('click', () => {
-    apiKey = $('apiKeyInput').value.trim();
-    localStorage.setItem('ap2_key', apiKey);
+    claudeKey = $('apiKeyClaude').value.trim();
+    openaiKey = $('apiKeyOpenAI').value.trim();
+    aiProvider = document.querySelector('input[name="apiProvider"]:checked')?.value || 'claude';
+
+    if (!hasActiveKey()) {
+      updateKeyStatus();
+      return;
+    }
+
+    localStorage.setItem('ap2_claude_key', claudeKey);
+    localStorage.setItem('ap2_openai_key', openaiKey);
+    localStorage.setItem('ap2_provider', aiProvider);
+    localStorage.removeItem('ap2_key');
     updateKeyBtn();
     updateKeyStatus();
     setTimeout(() => $('overlay').classList.add('hidden'), 600);
