@@ -741,6 +741,11 @@ function updateKeyBtn() {
     btn.textContent = '⚙ API-Key einrichten';
     btn.classList.remove('active');
   }
+  // Sync sidebar KI indicator
+  const dot    = $('sbKiDot');
+  const status = $('sbKiStatus');
+  if (dot)    dot.className    = apiKey ? 'sb-ki-dot active' : 'sb-ki-dot';
+  if (status) status.textContent = apiKey ? 'Aktiv – klicken zum öffnen' : 'Kein API-Key – klicken zum einrichten';
 }
 
 // ── Events ────────────────────────────────────────────────────────────────
@@ -786,6 +791,14 @@ function setupEvents() {
   // Quick buttons
   $('quickBtns').querySelectorAll('.qbtn').forEach(btn => {
     btn.addEventListener('click', () => askAI(btn.dataset.q));
+  });
+
+  // Sidebar KI entry
+  $('sbKi').addEventListener('click', () => {
+    if (!apiKey) { showModal(); return; }
+    // Unminimize chat if needed, then focus input
+    if (chatMin) toggleChat();
+    $('chatInput').focus();
   });
 
   // Settings
