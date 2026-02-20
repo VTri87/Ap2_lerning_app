@@ -603,11 +603,155 @@ function setupEvents() {
   });
 }
 
+// ── DB Table detection helpers ────────────────────────────────────────────
+/** Returns true if a line looks like a database column name */
+function looksLikeColumnName(line) {
+  if (!line) return false;
+  const t = line.trim();
+  if (!t || t.length > 50) return false;
+  if (/\s/.test(t)) return false;           // no spaces
+  if (/^\d/.test(t)) return false;          // doesn't start with digit
+  if (t.includes('_')) return true;         // e.g. Kd_IdKey, MID_Sol
+  if (t.includes('/')) return true;         // e.g. Datum/Uhrzeit
+  if (/^[A-Z]{2,6}[a-z]{0,2}$/.test(t)) return true; // PID, OID, UTNr, PDNr
+  if (/^[A-ZÜÄÖ][a-züäöA-ZÜÄÖ0-9]{1,20}$/.test(t)) return true; // Datum, Patient
+  return false;
+}
+
+/** Returns true if a line is a strong primary-key / ID column indicator */
+function looksLikeTableStartColumn(line) {
+  if (!line) return false;
+  const t = line.trim();
+  if (/^\d/.test(t)) return false;
+  if (t.includes('_')) return true;                    // Kd_IdKey, WA_IdKey
+  if (t.includes('/')) return true;                    // Datum/Uhrzeit
+  if (/^[A-Z]{2,5}[a-z]{0,2}$/.test(t)) return true; // PID, OID, UTNr, MID
+  return false;
+}
+
+/** Returns true when a line signals the end of table data */
+function isTableEndLine(line) {
+  if (!line) return false;
+  const t = line.trim();
+  if (!t) return false;
+  if (/^[a-z]\)$/.test(t)) return true;
+  if (/^[a-z]{2,3}\)\s/.test(t)) return true;
+  if (/^Hinweis:/i.test(t)) return true;
+  if (/^Fortsetzung/i.test(t)) return true;
+  if (/^L.{1,4}sung/i.test(t)) return true;
+  if (t.length > 65) return true; // long sentence = not a data cell
+  return false;
+}
+
+/**
+ * Try to parse a DB table starting at lines[start].
+ * Returns { tableName, headers, rows, hadEllipsis, endIndex } or null.
+ */
+function tryParseTable(lines, start) {
+  let i = start;
+  let tableName = '';
+  const t0 = lines[i] ? lines[i].trim() : '';
+
+  // Case 1: explicit "Tabelle: X" marker
+  const tabMatch = t0.match(/^Tabelle:\s*(.+)$/);
+  if (tabMatch) {
+    tableName = tabMatch[1].trim();
+    i++;
+  }
+  // Case 2: standalone word + next line is a strong column ID (e.g. "Pflegearbeit" + "PID")
+  else if (/^[A-ZÜÄÖ][a-züäöA-ZÜÄÖ0-9]+$/.test(t0) && t0.length <= 25) {
+    const nextT = lines[i + 1] ? lines[i + 1].trim() : '';
+    if (looksLikeTableStartColumn(nextT)) {
+      tableName = t0;
+      i++;
+    } else {
+      return null;
+    }
+  }
+  // Case 3: anonymous table – starts directly with a strong column indicator
+  else if (looksLikeTableStartColumn(t0)) {
+    tableName = '';
+    // i stays at start
+  } else {
+    return null;
+  }
+
+  // Collect header columns (stop at first digit-starting line)
+  const headers = [];
+  while (i < lines.length && headers.length < 15) {
+    const l = lines[i].trim();
+    if (!l) { i++; continue; }
+    if (/^\d/.test(l)) break;
+    if (!looksLikeColumnName(l)) break;
+    headers.push(l);
+    i++;
+  }
+
+  if (headers.length < 2) return null;
+  if (!headers.some(h => looksLikeTableStartColumn(h))) return null;
+
+  const N = headers.length;
+
+  // Collect data rows (groups of exactly N lines; rows always start with a digit PK)
+  const rows = [];
+  while (i < lines.length) {
+    const firstCell = lines[i] ? lines[i].trim() : '';
+    if (!firstCell) { i++; break; }
+    if (isTableEndLine(firstCell)) break;
+    if (!/^\d/.test(firstCell)) break; // data rows start with numeric PK
+
+    const row = [];
+    let j = i;
+    for (let c = 0; c < N; c++) {
+      if (j >= lines.length) break;
+      const cell = lines[j].trim();
+      if (isTableEndLine(cell)) break;
+      row.push(cell);
+      j++;
+    }
+
+    if (row.length === N) {
+      rows.push(row);
+      i = j;
+    } else {
+      break;
+    }
+  }
+
+  // Consume trailing "…" (ellipsis = more rows exist)
+  let hadEllipsis = false;
+  if (i < lines.length && lines[i].trim() === '\u2026') {
+    hadEllipsis = true;
+    i++;
+  }
+
+  if (rows.length === 0) return null;
+  return { tableName, headers, rows, hadEllipsis, endIndex: i };
+}
+
+/** Render a parsed DB table as styled HTML */
+function renderDbTable(t) {
+  let html = '<div class="db-table-wrap">';
+  if (t.tableName) html += `<div class="db-table-name">${esc(t.tableName)}</div>`;
+  html += '<div class="db-table-scroll"><table class="db-table"><thead><tr>';
+  for (const h of t.headers) html += `<th>${esc(h)}</th>`;
+  html += '</tr></thead><tbody>';
+  for (const row of t.rows) {
+    html += '<tr>';
+    for (const cell of row) html += `<td>${esc(cell)}</td>`;
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+  if (t.hadEllipsis) html += '<div class="db-table-more">… weitere Einträge</div>';
+  html += '</div>';
+  return html;
+}
+
 // ── Task content formatter ────────────────────────────────────────────────
 /**
  * Wandelt rohen Aufgaben-Text in strukturiertes HTML um.
- * Erkennt: Hauptfragen (a)/b)/c)), Unterfragen (aa)/ab)), Punkte-Badges,
- * Aufzählungen (-), Abschnittsüberschriften (Wort:) und Code-Blöcke.
+ * Erkennt: DB-Tabellen, Hauptfragen (a)/b)/c)), Unterfragen (aa)/ab)),
+ * Punkte-Badges, Aufzählungen (-), Abschnittsüberschriften (Wort:).
  */
 function formatTask(raw) {
   const lines = raw.split('\n');
@@ -630,6 +774,26 @@ function formatTask(raw) {
     if (!line) {
       flushBullets(bullets);
       continue;
+    }
+
+    // ── DB Table detection ────────────────────────────────────────────
+    {
+      const nextLine = i < lines.length ? lines[i].trim() : '';
+      const shouldTryTable =
+        /^Tabelle:\s/.test(line) ||
+        (/^[A-ZÜÄÖ][a-züäöA-ZÜÄÖ0-9]+$/.test(line) && line.length <= 25 &&
+          looksLikeTableStartColumn(nextLine)) ||
+        (looksLikeTableStartColumn(line) && looksLikeColumnName(nextLine));
+
+      if (shouldTryTable) {
+        const tableResult = tryParseTable(lines, i - 1);
+        if (tableResult) {
+          flushBullets(bullets);
+          out.push(renderDbTable(tableResult));
+          i = tableResult.endIndex;
+          continue;
+        }
+      }
     }
 
     // ── Hauptfrage: Zeile ist nur "a)" / "b)" / "c)" usw. ──
