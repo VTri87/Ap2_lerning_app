@@ -195,12 +195,14 @@ function showTopicView(topic) {
   showView('topic');
   $('topicHeading').textContent = `${topic.icon} ${topic.label}`;
 
-  // Theory from Claude
+  // Theory from Claude – only on demand
   const box = $('theoryBox');
   if (hasActiveKey()) {
-    box.textContent = 'KI erklärt das Thema…';
-    box.className = 'theory-box loading';
-    streamTheory(topic, box);
+    box.className = 'theory-box';
+    box.innerHTML = '<button class="btn-explain" onclick="this.closest(\'.theory-box\').dataset.topic = \'\'; triggerTheory(this)">🤖 KI-Erklärung laden</button>';
+    box.dataset.topicId = topic.id;
+    // Store topic reference for the button handler
+    box._topic = topic;
   } else {
     box.className = 'theory-box';
     box.textContent = 'ℹ️ Trage deinen API-Key unter ⚙ ein, um KI-Erklärungen zu erhalten.';
@@ -218,6 +220,16 @@ function showTopicView(topic) {
     const card = buildTaskCard(task, exam.label);
     list.appendChild(card);
   }
+}
+
+function triggerTheory(btn) {
+  const box = btn.closest('.theory-box');
+  const topic = box._topic;
+  if (!topic) return;
+  box.innerHTML = '';
+  box.textContent = 'KI erklärt das Thema…';
+  box.className = 'theory-box loading';
+  streamTheory(topic, box);
 }
 
 async function streamTheory(topic, container) {
