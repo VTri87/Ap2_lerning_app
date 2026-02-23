@@ -22,8 +22,11 @@ const TOPICS = [
   { id:'code',        label:'Code lesen & schreiben',    icon:'💻',  keywords:['Methode','Funktion','Rückgabe','Parameter','Schleife'] },
 ];
 
-// Cache für KI-Erklärungen – wird pro Session im Speicher gehalten
-const theoryCache = {};
+// Cache für KI-Erklärungen – wird in localStorage dauerhaft gespeichert
+const theoryCache = JSON.parse(localStorage.getItem('ap2_theory_cache') || '{}');
+function saveTheoryCache() {
+  localStorage.setItem('ap2_theory_cache', JSON.stringify(theoryCache));
+}
 
 const SYSTEM_PROMPT = `Du bist ein spezialisierter Lernassistent für den AP2 Teil 2 der IHK-Abschlussprüfung für Fachinformatiker Anwendungsentwicklung (FIAE).
 
@@ -242,6 +245,7 @@ function regenTheory() {
   const topic = box._topic;
   if (!topic) return;
   delete theoryCache[topic.id];
+  saveTheoryCache();
   box.innerHTML = '';
   box.textContent = 'KI erklärt das Thema…';
   box.className = 'theory-box loading';
@@ -337,6 +341,7 @@ Bleib prägnant und prüfungsrelevant. Nutze Markdown für Formatierung (## Übe
       chunk => { fullText += chunk; container.textContent = fullText; },
     );
     theoryCache[topic.id] = fullText;
+    saveTheoryCache();
     renderTheoryResult(container, fullText);
   } catch (e) {
     container.textContent = '❌ Fehler: ' + e.message;
