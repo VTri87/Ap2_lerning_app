@@ -22,6 +22,9 @@ const TOPICS = [
   { id:'code',        label:'Code lesen & schreiben',    icon:'💻',  keywords:['Methode','Funktion','Rückgabe','Parameter','Schleife'] },
 ];
 
+// Cache für KI-Erklärungen – wird pro Session im Speicher gehalten
+const theoryCache = {};
+
 const SYSTEM_PROMPT = `Du bist ein spezialisierter Lernassistent für den AP2 Teil 2 der IHK-Abschlussprüfung für Fachinformatiker Anwendungsentwicklung (FIAE).
 
 Dein Fokus liegt AUSSCHLIESSLICH auf dem Prüfungsteil "Entwicklung und Umsetzung von Algorithmen".
@@ -197,15 +200,17 @@ function showTopicView(topic) {
 
   // Theory from Claude – only on demand
   const box = $('theoryBox');
+  box._topic = topic;
   if (hasActiveKey()) {
-    box.className = 'theory-box';
-    box.innerHTML = '<button class="btn-explain" onclick="this.closest(\'.theory-box\').dataset.topic = \'\'; triggerTheory(this)">🤖 KI-Erklärung laden</button>';
-    box.dataset.topicId = topic.id;
-    // Store topic reference for the button handler
-    box._topic = topic;
+    box.style.display = '';
+    if (theoryCache[topic.id]) {
+      renderTheoryResult(box, theoryCache[topic.id]);
+    } else {
+      box.className = 'theory-box';
+      box.innerHTML = '<button class="btn-explain" onclick="triggerTheory()">🤖 KI-Erklärung laden</button>';
+    }
   } else {
-    box.className = 'theory-box';
-    box.textContent = 'ℹ️ Trage deinen API-Key unter ⚙ ein, um KI-Erklärungen zu erhalten.';
+    box.style.display = 'none';
   }
 
   // Matching tasks
@@ -222,14 +227,91 @@ function showTopicView(topic) {
   }
 }
 
-function triggerTheory(btn) {
-  const box = btn.closest('.theory-box');
+function triggerTheory() {
+  const box = $('theoryBox');
   const topic = box._topic;
   if (!topic) return;
   box.innerHTML = '';
   box.textContent = 'KI erklärt das Thema…';
   box.className = 'theory-box loading';
   streamTheory(topic, box);
+}
+
+function regenTheory() {
+  const box = $('theoryBox');
+  const topic = box._topic;
+  if (!topic) return;
+  delete theoryCache[topic.id];
+  box.innerHTML = '';
+  box.textContent = 'KI erklärt das Thema…';
+  box.className = 'theory-box loading';
+  streamTheory(topic, box);
+}
+
+function renderTheoryResult(box, text) {
+  box.className = 'theory-box';
+  box.innerHTML = `<div class="theory-content">${renderMarkdown(text)}</div>
+    <button class="btn-regenerate" onclick="regenTheory()">🔄 Neu generieren</button>`;
+}
+
+function renderMarkdown(text) {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Protect fenced code blocks
+  const codeBlocks = [];
+  text = text.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => {
+    codeBlocks.push(`<pre><code>${esc(code.trim())}</code></pre>`);
+    return `\x00CODE${codeBlocks.length - 1}\x00`;
+  });
+  // Protect inline code
+  const inlineCodes = [];
+  text = text.replace(/`([^`\n]+)`/g, (_, code) => {
+    inlineCodes.push(`<code class="ic">${esc(code)}</code>`);
+    return `\x00IC${inlineCodes.length - 1}\x00`;
+  });
+
+  const inlineFmt = s => s
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\x00IC(\d+)\x00/g, (_, i) => inlineCodes[i]);
+
+  let html = '';
+  let inUl = false, inOl = false;
+  const closeList = () => {
+    if (inUl) { html += '</ul>'; inUl = false; }
+    if (inOl) { html += '</ol>'; inOl = false; }
+  };
+
+  for (const line of text.split('\n')) {
+    if (/^#{1,2} /.test(line)) {
+      closeList();
+      html += `<h3>${inlineFmt(esc(line.replace(/^#{1,2} /, '')))}</h3>`;
+    } else if (/^### /.test(line)) {
+      closeList();
+      html += `<h4>${inlineFmt(esc(line.slice(4)))}</h4>`;
+    } else if (/^- /.test(line)) {
+      if (inOl) { html += '</ol>'; inOl = false; }
+      if (!inUl) { html += '<ul>'; inUl = true; }
+      html += `<li>${inlineFmt(esc(line.slice(2)))}</li>`;
+    } else if (/^\d+\. /.test(line)) {
+      if (inUl) { html += '</ul>'; inUl = false; }
+      if (!inOl) { html += '<ol>'; inOl = true; }
+      html += `<li>${inlineFmt(esc(line.replace(/^\d+\. /, '')))}</li>`;
+    } else if (line.trim() === '') {
+      closeList();
+      html += '<br>';
+    } else if (/^\x00CODE\d+\x00$/.test(line.trim())) {
+      closeList();
+      html += line.trim();
+    } else {
+      closeList();
+      html += `<p>${inlineFmt(esc(line))}</p>`;
+    }
+  }
+  closeList();
+
+  // Restore code blocks
+  html = html.replace(/\x00CODE(\d+)\x00/g, (_, i) => codeBlocks[i]);
+  return html;
 }
 
 async function streamTheory(topic, container) {
@@ -243,20 +325,21 @@ Struktur:
 4. Typische Aufgabenstellungen
 5. Häufige Fehler vermeiden
 
-Bleib prägnant und prüfungsrelevant.`;
+Bleib prägnant und prüfungsrelevant. Nutze Markdown für Formatierung (## Überschriften, **fett**, \`Code\`, Aufzählungen).`;
 
+  let fullText = '';
   container.textContent = '';
   container.className = 'theory-box streaming';
 
   try {
     await streamAI(
       [{ role: 'user', content: prompt }],
-      chunk => { container.textContent += chunk; },
+      chunk => { fullText += chunk; container.textContent = fullText; },
     );
+    theoryCache[topic.id] = fullText;
+    renderTheoryResult(container, fullText);
   } catch (e) {
     container.textContent = '❌ Fehler: ' + e.message;
-  } finally {
-    container.classList.remove('streaming');
     container.className = 'theory-box';
   }
 }
@@ -742,7 +825,8 @@ function countTasksForTopic(topic) {
   let count = 0;
   for (const exam of exams)
     for (const task of exam.tasks)
-      if (topic.keywords.some(kw => task.content.toLowerCase().includes(kw.toLowerCase()))) { count++; break; }
+      if (topic.keywords.some(kw => task.content.toLowerCase().includes(kw.toLowerCase())))
+        count++;
   return count;
 }
 
