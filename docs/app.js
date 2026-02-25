@@ -15,7 +15,7 @@ const TOPICS = [
   { id:'rekursion',   label:'Rekursion',                 icon:'🔁',  keywords:['rekursiv','Rekursion','Abbruchbedingung'] },
   { id:'uml',         label:'UML Aktivitätsdiagramm',   icon:'📊',  keywords:['Aktivitätsdiagramm','UML','Aktivität'] },
   { id:'sql',         label:'SQL & Datenbanken',         icon:'🗄️',  keywords:['SQL','SELECT','JOIN','Stored Procedure','Trigger'] },
-  { id:'erm',         label:'ERM & Relationales Modell', icon:'🔗',  keywords:['ERM','ER-Modell','relationales Modell','Normalisierung','Entität'] },
+  { id:'erm',         label:'ERM & Relationales Modell', icon:'🔗',  keywords:['ERM','ER-Modell','relationales Modell','Normalisierung','Entität','Normalform','Datenmodell','Datenbankmodell'] },
   { id:'arrays',      label:'Arrays & Datenstrukturen',  icon:'📋',  keywords:['Array','zweidimensional','Liste','Stack','Queue'] },
   { id:'testing',     label:'Testing & Unit-Tests',      icon:'✅',  keywords:['Unit-Test','Testfall','Blackbox','Whitebox','Äquivalenzklasse'] },
   { id:'oop',         label:'OOP & Klassendiagramm',     icon:'🧱',  keywords:['Klasse','Objekt','Vererbung','Polymorphismus','Klassendiagramm'] },
