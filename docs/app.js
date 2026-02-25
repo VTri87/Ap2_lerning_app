@@ -10,16 +10,16 @@ const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const DATA_URL       = 'data/exams.json';   // Pfad zur PrÃ¼fungsdaten-Datei
 
 const TOPICS = [
-  { id:'algorithmen', label:'Algorithmen & Pseudocode', icon:'âš™ï¸',  keywords:['Algorithmus','Pseudocode','Struktogramm'] },
-  { id:'sortierung',  label:'Sortieralgorithmen',        icon:'ðŸ”¢',  keywords:['Sortier','Bubble','Selection','Insertion','Quick'] },
-  { id:'rekursion',   label:'Rekursion',                 icon:'ðŸ”',  keywords:['rekursiv','Rekursion','Abbruchbedingung'] },
-  { id:'uml',         label:'UML AktivitÃ¤tsdiagramm',   icon:'ðŸ“Š',  keywords:['AktivitÃ¤tsdiagramm','UML','AktivitÃ¤t'] },
-  { id:'sql',         label:'SQL & Datenbanken',         icon:'ðŸ—„ï¸',  keywords:['SQL','SELECT','JOIN','Stored Procedure','Trigger'] },
-  { id:'erm',         label:'ERM & Relationales Modell', icon:'ðŸ”—',  keywords:['ERM','ER-Modell','relationales Modell','Normalisierung','EntitÃ¤t','Normalform','Datenmodell','Datenbankmodell'] },
-  { id:'arrays',      label:'Arrays & Datenstrukturen',  icon:'ðŸ“‹',  keywords:['Array','zweidimensional','Liste','Stack','Queue'] },
-  { id:'testing',     label:'Testing & Unit-Tests',      icon:'âœ…',  keywords:['Unit-Test','Testfall','Blackbox','Whitebox','Ã„quivalenzklasse'] },
-  { id:'oop',         label:'OOP & Klassendiagramm',     icon:'ðŸ§±',  keywords:['Klasse','Objekt','Vererbung','Polymorphismus','Klassendiagramm'] },
-  { id:'code',        label:'Code lesen & schreiben',    icon:'ðŸ’»',  keywords:['Methode','Funktion','RÃ¼ckgabe','Parameter','Schleife'] },
+  { id:'algorithmen', label:'Algorithmen & Pseudocode', icon:'ALG', keywords:['Algorithmus','Pseudocode','Struktogramm'] },
+  { id:'sortierung',  label:'Sortieralgorithmen', icon:'SRT', keywords:['Sortier','Bubble','Selection','Insertion','Quick'] },
+  { id:'rekursion',   label:'Rekursion', icon:'REC', keywords:['rekursiv','Rekursion','Abbruchbedingung'] },
+  { id:'uml',         label:'UML Aktivitaetsdiagramm', icon:'UML', keywords:['Aktivitaetsdiagramm','UML','Aktivitaet'] },
+  { id:'sql',         label:'SQL & Datenbanken', icon:'SQL', keywords:['SQL','SELECT','JOIN','Stored Procedure','Trigger'] },
+  { id:'erm',         label:'ERM & Relationales Modell', icon:'ERM', keywords:['ERM','ER-Modell','relationales Modell','Normalisierung','Entitaet','Normalform','Datenmodell','Datenbankmodell'] },
+  { id:'arrays',      label:'Arrays & Datenstrukturen', icon:'ARR', keywords:['Array','zweidimensional','Liste','Stack','Queue'] },
+  { id:'testing',     label:'Testing & Unit-Tests', icon:'TST', keywords:['Unit-Test','Testfall','Blackbox','Whitebox','Aequivalenzklasse'] },
+  { id:'oop',         label:'OOP & Klassendiagramm', icon:'OOP', keywords:['Klasse','Objekt','Vererbung','Polymorphismus','Klassendiagramm'] },
+  { id:'code',        label:'Code lesen & schreiben', icon:'COD', keywords:['Methode','Funktion','Rueckgabe','Parameter','Schleife'] },
 ];
 
 // Cache fÃ¼r KI-ErklÃ¤rungen â€“ wird in localStorage dauerhaft gespeichert
@@ -1385,4 +1385,5 @@ function escRe(str) {
 
 // â”€â”€ Start â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 init();
+
 
