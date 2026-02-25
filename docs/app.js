@@ -319,12 +319,15 @@ function renderMarkdown(text) {
   };
 
   for (const line of text.split('\n')) {
-    if (/^#{1,2} /.test(line)) {
-      closeList();
-      html += `<h3>${inlineFmt(esc(line.replace(/^#{1,2} /, '')))}</h3>`;
-    } else if (/^### /.test(line)) {
+    if (/^### /.test(line)) {
       closeList();
       html += `<h4>${inlineFmt(esc(line.slice(4)))}</h4>`;
+    } else if (/^## /.test(line)) {
+      closeList();
+      html += `<h3>${inlineFmt(esc(line.slice(3)))}</h3>`;
+    } else if (/^# /.test(line)) {
+      closeList();
+      html += `<h2>${inlineFmt(esc(line.slice(2)))}</h2>`;
     } else if (/^- /.test(line)) {
       if (inOl) { html += '</ol>'; inOl = false; }
       if (!inUl) { html += '<ul>'; inUl = true; }
@@ -377,15 +380,15 @@ Bleib prÃ¤gnant und prÃ¼fungsrelevant. Nutze Markdown fÃ¼r Formatierung (#
     saveTheoryCache();
     renderTheoryResult(container, fullText);
   } catch (e) {
-    container.textContent = 'âŒ Fehler: ' + e.message;
+    container.textContent = '❌ Fehler: ' + e.message;
     container.className = 'theory-box';
   }
 }
 
 // â”€â”€ Task card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-/** Gibt nur den Aufgaben-Teil zurÃ¼ck (ohne angehÃ¤ngte LÃ¶sungshinweise) */
+/** Gibt nur den Aufgaben-Teil zurück (ohne angehängte Lösungshinweise) */
 function getTaskQuestion(content) {
-  const idx = content.search(/LÃ¶sungshinweis/i);
+  const idx = content.search(/Lösungshinweis/i);
   return idx > 0 ? content.slice(0, idx).trimEnd() : content;
 }
 
@@ -579,7 +582,7 @@ const EVAL_SYSTEM_PROMPT = `Du bist ein erfahrener AP2-PrÃ¼fungsexperte fÃ¼r
 
 Dein Bewertungsformat (immer auf Deutsch):
 Beginne mit einer klaren EinschÃ¤tzung in der ersten Zeile:
-âœ… Richtig  ODER  âš ï¸ Teilweise richtig  ODER  âŒ Falsch
+✅ Richtig  ODER  ⚠️ Teilweise richtig  ODER  ❌ Falsch
 
 Danach strukturiert:
 **Was korrekt ist:** (falls vorhanden, sonst weglassen)
@@ -634,9 +637,9 @@ async function evaluateAnswer(panel, task, label, textAnswer, imageData, imageTy
 function formatFeedback(text) {
   let html = esc(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/(âœ…[^\n<]*)/g, '<span class="fb-ok">$1</span>')
-    .replace(/(âš ï¸[^\n<]*)/g, '<span class="fb-warn">$1</span>')
-    .replace(/(âŒ[^\n<]*)/g, '<span class="fb-err">$1</span>')
+    .replace(/(✅[^\n<]*)/g, '<span class="fb-ok">$1</span>')
+    .replace(/(⚠️[^\n<]*)/g, '<span class="fb-warn">$1</span>')
+    .replace(/(❌[^\n<]*)/g, '<span class="fb-err">$1</span>')
     .replace(/\n\n+/g, '</p><p class="fb-p">')
     .replace(/\n/g, '<br>');
   return `<p class="fb-p">${html}</p>`;
@@ -886,7 +889,7 @@ async function sendChat() {
 
   } catch (e) {
     bubbleEl.classList.remove('streaming');
-    bubbleEl.textContent = 'âŒ ' + e.message;
+    bubbleEl.textContent = '❌ ' + e.message;
     if (e.message.includes('API-Key')) showModal();
   }
 
@@ -899,7 +902,7 @@ function appendMsg(role, text, streaming = false) {
   div.className = `msg ${role}`;
   const bubble = document.createElement('div');
   bubble.className = `bubble${streaming ? ' streaming' : ''}`;
-  if (text) bubble.innerHTML = text;
+  if (text) { if (role === 'user') bubble.textContent = text; else bubble.innerHTML = text; }
   div.appendChild(bubble);
   $('chatMsgs').appendChild(div);
   $('chatMsgs').scrollTop = $('chatMsgs').scrollHeight;
@@ -923,14 +926,14 @@ function doSearch(query) {
         const idx = task.content.toLowerCase().indexOf(q);
         const start = Math.max(0, idx - 50);
         const end   = Math.min(task.content.length, idx + 180);
-        results.push({ exam, task, snippet: 'â€¦' + task.content.slice(start, end) + 'â€¦' });
+        results.push({ exam, task, snippet: '…' + task.content.slice(start, end) + '…' });
         if (results.length >= 8) break;
       }
     }
     if (results.length >= 8) break;
   }
 
-  const hl = str => str.replace(new RegExp(escRe(query), 'gi'), m => `<mark class="search-mark">${m}</mark>`);
+  const hl = str => esc(str).replace(new RegExp(escRe(esc(query)), 'gi'), m => `<mark class="search-mark">${m}</mark>`);
 
   if (!results.length) {
     $('searchDropdown').innerHTML = '<div class="sd-item" style="color:var(--muted)">Keine Treffer</div>';
@@ -1083,18 +1086,13 @@ function setupEvents() {
     openaiKey = $('apiKeyOpenAI').value.trim();
     aiProvider = document.querySelector('input[name="apiProvider"]:checked')?.value || 'claude';
 
-    if (!hasActiveKey()) {
-      updateKeyStatus();
-      return;
-    }
-
     localStorage.setItem('ap2_claude_key', claudeKey);
     localStorage.setItem('ap2_openai_key', openaiKey);
     localStorage.setItem('ap2_provider', aiProvider);
     localStorage.removeItem('ap2_key');
     updateKeyBtn();
     updateKeyStatus();
-    setTimeout(() => $('overlay').classList.add('hidden'), 600);
+    if (hasActiveKey()) setTimeout(() => $('overlay').classList.add('hidden'), 600);
   });
 
   // Search
