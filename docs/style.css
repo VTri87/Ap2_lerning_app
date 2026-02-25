@@ -300,6 +300,25 @@ code.sql-kw{
 .answer-panel{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}
 .answer-panel.hidden{display:none}
 .ap-header{font-size:13px;font-weight:700;color:var(--accent2);margin-bottom:10px}
+.ap-part{
+  margin-bottom:12px;
+  padding:10px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--bg2);
+}
+.ap-part-head{
+  font-size:12px;
+  font-weight:700;
+  color:var(--accent);
+  margin-bottom:6px;
+}
+.ap-part-text-src{
+  font-size:12px;
+  color:var(--dim);
+  margin-bottom:8px;
+  line-height:1.6;
+}
 .ap-text{
   width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);
   border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;
@@ -320,9 +339,9 @@ code.sql-kw{
 }
 .ap-img-clear:hover{border-color:var(--red);color:var(--red)}
 .ap-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.ap-submit{background:rgba(124,91,246,.15)!important;border-color:var(--accent2)!important;color:var(--accent2)!important}
-.ap-submit:hover{background:rgba(124,91,246,.3)!important}
-.ap-submit:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+.ap-submit,.ap-submit-part,.ap-submit-single{background:rgba(124,91,246,.15)!important;border-color:var(--accent2)!important;color:var(--accent2)!important}
+.ap-submit:hover,.ap-submit-part:hover,.ap-submit-single:hover{background:rgba(124,91,246,.3)!important}
+.ap-submit:disabled,.ap-submit-part:disabled,.ap-submit-single:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 .ap-feedback{
   margin-top:14px;background:var(--bg3);
   border:1px solid var(--border);border-left:3px solid var(--accent2);

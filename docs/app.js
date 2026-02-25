@@ -421,30 +421,44 @@ function toggleAnswerPanel(card, task, label) {
 
 function createAnswerPanel(task, label) {
   const panel = document.createElement('div');
+  const parts = extractQuestionParts(task.content);
+  const partsHtml = parts.length
+    ? parts.map((part, idx) => `
+      <div class="ap-part">
+        <div class="ap-part-head">Teilfrage ${esc(part.label)})</div>
+        <div class="ap-part-text-src">${inlineFormat(part.text)}</div>
+        <textarea class="ap-text ap-part-text" rows="3" data-part-index="${idx}" placeholder="Deine Antwort zu ${esc(part.label)})"></textarea>
+        <button type="button" class="btn-task ap-submit-part" data-part-index="${idx}">Von KI pr�fen lassen</button>
+      </div>
+    `).join('')
+    : `<div class="ap-part">
+         <textarea class="ap-text" rows="4" placeholder="Deine Antwort, Pseudocode, SQL-Abfrage, Erkl�rung..."></textarea>
+         <button type="button" class="btn-task ap-submit-single">Von KI pr�fen lassen</button>
+       </div>`;
+
   panel.className = 'answer-panel hidden';
   panel.innerHTML = `
-    <div class="ap-header">✏️ Deine Lösung einreichen &amp; prüfen lassen</div>
-    <textarea class="ap-text" rows="4" placeholder="Deine Antwort, Pseudocode, SQL-Abfrage, Erklärung…"></textarea>
+    <div class="ap-header">Deine L�sung einreichen und pr�fen lassen</div>
+    ${partsHtml}
     <div class="ap-img-zone">
-      <div class="ap-img-hint">📎 Bild hochladen (draw.io PNG, UML, Foto) — klicken oder reinziehen</div>
+      <div class="ap-img-hint">Bild hochladen (draw.io PNG, UML, Foto) - klicken oder reinziehen</div>
       <img class="ap-img-preview" alt="Vorschau" style="display:none">
-      <button type="button" class="ap-img-clear" style="display:none">× Bild entfernen</button>
+      <button type="button" class="ap-img-clear" style="display:none">Bild entfernen</button>
       <input type="file" class="ap-img-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none">
     </div>
     <div class="ap-actions">
-      <button type="button" class="btn-task ap-submit">🔍 Von KI prüfen lassen</button>
       <button type="button" class="btn-task ap-cancel">Abbrechen</button>
     </div>
     <div class="ap-feedback hidden"></div>
   `;
 
-  const imgZone    = panel.querySelector('.ap-img-zone');
-  const imgInput   = panel.querySelector('.ap-img-input');
+  const imgZone = panel.querySelector('.ap-img-zone');
+  const imgInput = panel.querySelector('.ap-img-input');
   const imgPreview = panel.querySelector('.ap-img-preview');
-  const imgClear   = panel.querySelector('.ap-img-clear');
-  const imgHint    = panel.querySelector('.ap-img-hint');
-  let imageData = null;  // base64 string (without data: prefix)
-  let imageType = null;  // MIME type
+  const imgClear = panel.querySelector('.ap-img-clear');
+  const imgHint = panel.querySelector('.ap-img-hint');
+  let imageData = null;
+  let imageType = null;
 
   function loadImageFile(file) {
     if (!file || !file.type.startsWith('image/')) return;
@@ -455,49 +469,79 @@ function createAnswerPanel(task, label) {
       imageType = file.type;
       imgPreview.src = ev.target.result;
       imgPreview.style.display = 'block';
-      imgClear.style.display   = 'inline-block';
-      imgHint.style.display    = 'none';
+      imgClear.style.display = 'inline-block';
+      imgHint.style.display = 'none';
     };
     reader.readAsDataURL(file);
   }
 
   function clearImage() {
-    imageData = null; imageType = null;
-    imgPreview.style.display = 'none'; imgPreview.src = '';
-    imgClear.style.display   = 'none';
-    imgHint.style.display    = '';
+    imageData = null;
+    imageType = null;
+    imgPreview.style.display = 'none';
+    imgPreview.src = '';
+    imgClear.style.display = 'none';
+    imgHint.style.display = '';
     imgInput.value = '';
   }
 
   imgZone.addEventListener('click', e => {
     if (!e.target.closest('.ap-img-clear')) imgInput.click();
   });
-  imgZone.addEventListener('dragover', e => { e.preventDefault(); imgZone.classList.add('dragover'); });
+  imgZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    imgZone.classList.add('dragover');
+  });
   imgZone.addEventListener('dragleave', () => imgZone.classList.remove('dragover'));
   imgZone.addEventListener('drop', e => {
-    e.preventDefault(); imgZone.classList.remove('dragover');
+    e.preventDefault();
+    imgZone.classList.remove('dragover');
     loadImageFile(e.dataTransfer.files[0]);
   });
   imgInput.addEventListener('change', () => loadImageFile(imgInput.files[0]));
-  imgClear.addEventListener('click', e => { e.stopPropagation(); clearImage(); });
+  imgClear.addEventListener('click', e => {
+    e.stopPropagation();
+    clearImage();
+  });
 
   panel.querySelector('.ap-cancel').addEventListener('click', () => {
     panel.classList.add('hidden');
   });
 
-  panel.querySelector('.ap-submit').addEventListener('click', () => {
-    if (!hasActiveKey()) { showModal(); return; }
-    const text = panel.querySelector('.ap-text').value.trim();
-    if (!text && !imageData) {
-      panel.querySelector('.ap-text').focus();
-      return;
-    }
-    evaluateAnswer(panel, task, label, text, imageData, imageType);
+  const singleBtn = panel.querySelector('.ap-submit-single');
+  if (singleBtn) {
+    singleBtn.addEventListener('click', () => {
+      if (!hasActiveKey()) {
+        showModal();
+        return;
+      }
+      const text = panel.querySelector('.ap-text').value.trim();
+      if (!text && !imageData) {
+        panel.querySelector('.ap-text').focus();
+        return;
+      }
+      evaluateAnswer(panel, task, label, text, imageData, imageType, null);
+    });
+  }
+
+  panel.querySelectorAll('.ap-submit-part').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!hasActiveKey()) {
+        showModal();
+        return;
+      }
+      const idx = Number(btn.dataset.partIndex);
+      const text = panel.querySelector(`.ap-part-text[data-part-index="${idx}"]`)?.value.trim() || '';
+      if (!text && !imageData) {
+        panel.querySelector(`.ap-part-text[data-part-index="${idx}"]`)?.focus();
+        return;
+      }
+      evaluateAnswer(panel, task, label, text, imageData, imageType, parts[idx] || null);
+    });
   });
 
   return panel;
 }
-
 const EVAL_SYSTEM_PROMPT = `Du bist ein erfahrener AP2-Prüfungsexperte für Fachinformatiker Anwendungsentwicklung (FIAE). Bewerte die eingereichte Schülerlösung sachlich und konstruktiv.
 
 Dein Bewertungsformat (immer auf Deutsch):
@@ -517,21 +561,24 @@ Spezifische Hinweise nach Aufgabentyp:
 
 Sei präzise und lehrreich. Falls ein Bild eingereicht wurde, analysiere es genau.`;
 
-async function evaluateAnswer(panel, task, label, textAnswer, imageData, imageType) {
-  const feedback  = panel.querySelector('.ap-feedback');
-  const submitBtn = panel.querySelector('.ap-submit');
+async function evaluateAnswer(panel, task, label, textAnswer, imageData, imageType, part) {
+  const feedback = panel.querySelector('.ap-feedback');
+  const submitBtns = panel.querySelectorAll('.ap-submit, .ap-submit-single, .ap-submit-part');
 
   feedback.classList.remove('hidden');
   feedback.className = 'ap-feedback streaming';
   feedback.textContent = '';
-  submitBtn.disabled = true;
+  submitBtns.forEach(btn => {
+    btn.disabled = true;
+  });
 
-  const taskContext = `Aufgabe ${task.num}${label ? ` aus „${label}"` : ''} (${task.points} Punkte):\n${task.content.slice(0, 1500)}`;
+  const partContext = part ? `\n\nTeilfrage ${part.label}):\n${part.text}` : '';
+  const taskContext = `Aufgabe ${task.num}${label ? ` aus "${label}"` : ''} (${task.points} Punkte):\n${getTaskQuestion(task.content).slice(0, 1500)}${partContext}`;
   const answerNote = textAnswer
-    ? `\n\nMeine Lösung:\n${textAnswer}`
-    : '\n\nMeine Lösung: (siehe eingefügtes Bild)';
+    ? `\n\nMeine L�sung:\n${textAnswer}`
+    : '\n\nMeine L�sung: (siehe eingef�gtes Bild)';
 
-  const evalPrompt = `${taskContext}${answerNote}\n\nBitte bewerte meine Lösung.`;
+  const evalPrompt = `${taskContext}${answerNote}\n\nBitte bewerte meine L�sung.`;
 
   try {
     let fullText = '';
@@ -543,13 +590,14 @@ async function evaluateAnswer(panel, task, label, textAnswer, imageData, imageTy
     feedback.innerHTML = formatFeedback(fullText);
   } catch (e) {
     feedback.className = 'ap-feedback';
-    feedback.innerHTML = `<span style="color:var(--red)">❌ Fehler: ${esc(e.message)}</span>`;
+    feedback.innerHTML = `<span style="color:var(--red)">Fehler: ${esc(e.message)}</span>`;
     if (e.message.includes('API-Key')) showModal();
   }
 
-  submitBtn.disabled = false;
+  submitBtns.forEach(btn => {
+    btn.disabled = false;
+  });
 }
-
 function formatFeedback(text) {
   let html = esc(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -562,18 +610,58 @@ function formatFeedback(text) {
 }
 
 function detectTags(content) {
-  const lower = content.toLowerCase();
+  const lower = getTaskQuestion(content).toLowerCase();
   const map = [
-    ['Pseudocode','Pseudocode'],['Struktogramm','Struktogramm'],
-    ['rekursiv','Rekursion'],['Aktivitätsdiagramm','UML'],
-    ['SQL','SQL'],['SELECT','SQL'],['ERM','ERM'],['relational','Rel. Modell'],
-    ['Unit-Test','Unit-Test'],['Sortier','Sortierung'],
-    ['Array','Array'],['Schreibtischtest','Schreibtischtest'],
-    ['Äquivalenz','Äquivalenzklasse'],['Klasse','OOP'],
+    ['Pseudocode', 'Pseudocode'], ['Struktogramm', 'Struktogramm'],
+    ['rekursiv', 'Rekursion'], ['Aktivit�tsdiagramm', 'UML'],
+    ['SQL', 'SQL'], ['SELECT', 'SQL'], ['ERM', 'ERM'], ['relational', 'Rel. Modell'],
+    ['Unit-Test', 'Unit-Test'], ['Sortier', 'Sortierung'],
+    ['Array', 'Array'], ['Schreibtischtest', 'Schreibtischtest'],
+    ['�quivalenz', '�quivalenzklasse'], ['Klasse', 'OOP'],
   ];
   const found = new Set();
   for (const [kw, label] of map) if (lower.includes(kw.toLowerCase())) found.add(label);
   return [...found].slice(0, 4);
+}
+
+function extractQuestionParts(content) {
+  const lines = getTaskQuestion(content).split('\n');
+  const parts = [];
+  let current = null;
+
+  function pushCurrent() {
+    if (!current) return;
+    current.text = current.text.trim();
+    if (current.text) parts.push(current);
+    current = null;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const marker = line.match(/^([a-z]{1,2})\)\s*(.*)$/i);
+    if (marker) {
+      pushCurrent();
+      const partLabel = marker[1].toLowerCase();
+      let text = marker[2].trim();
+      if (!text) {
+        let j = i + 1;
+        while (j < lines.length && !lines[j].trim()) j++;
+        if (j < lines.length && !/^[a-z]{1,2}\)\s*/i.test(lines[j].trim())) {
+          text = lines[j].trim();
+          i = j;
+        }
+      }
+      current = { label: partLabel, text: text ? `${text}\n` : '' };
+      continue;
+    }
+
+    if (current) current.text += `${line}\n`;
+  }
+
+  pushCurrent();
+  return parts;
 }
 
 // ── Claude API (direkt vom Browser) ──────────────────────────────────────
@@ -837,7 +925,7 @@ function countTasksForTopic(topic) {
   let count = 0;
   for (const exam of exams)
     for (const task of exam.tasks)
-      if (topic.keywords.some(kw => task.content.toLowerCase().includes(kw.toLowerCase())))
+      if (topic.keywords.some(kw => getTaskQuestion(task.content).toLowerCase().includes(kw.toLowerCase())))
         count++;
   return count;
 }
@@ -846,7 +934,7 @@ function findTasksForTopic(topic) {
   const results = [];
   for (const exam of exams)
     for (const task of exam.tasks)
-      if (topic.keywords.some(kw => task.content.toLowerCase().includes(kw.toLowerCase())))
+      if (topic.keywords.some(kw => getTaskQuestion(task.content).toLowerCase().includes(kw.toLowerCase())))
         results.push({ exam, task });
   return results;
 }
