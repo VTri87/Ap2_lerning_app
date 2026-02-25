@@ -86,6 +86,13 @@ async function init() {
 
 // â”€â”€ Load exam data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function loadExams() {
+  if (window.AP2_EMBEDDED_EXAMS && Array.isArray(window.AP2_EMBEDDED_EXAMS.exams)) {
+    exams = window.AP2_EMBEDDED_EXAMS.exams;
+    renderHome();
+    renderSidebar();
+    return;
+  }
+
   const candidates = [...new Set([
     DATA_URL,
     './data/exams.json',
@@ -114,6 +121,12 @@ async function loadExams() {
 
   const msg = lastError?.message || 'Unbekannter Fehler';
   console.error('Fehler beim Laden der Pruefungsdaten:', msg);
+  if (window.AP2_EMBEDDED_EXAMS && Array.isArray(window.AP2_EMBEDDED_EXAMS.exams)) {
+    exams = window.AP2_EMBEDDED_EXAMS.exams;
+    renderHome();
+    renderSidebar();
+    return;
+  }
   $('sidebarNav').innerHTML = `<div class="nav-placeholder" style="color:#f87171">Fehler beim Laden der Daten<br><small>${esc(msg)}</small></div>`;
 }
 
