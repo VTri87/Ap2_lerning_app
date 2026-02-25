@@ -1,13 +1,13 @@
-﻿/* â”€â”€ AP2 Teil 2 Lernplattform â€“ Statische Version â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
- *  LÃ¤uft komplett im Browser â€“ ruft Claude API direkt auf (kein Backend)
- * â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── AP2 Teil 2 Lernplattform – Statische Version ─────────────────
+ *  Läuft komplett im Browser – ruft Claude API direkt auf (kein Backend)
+ * ───────────────────────────────────────────────────────────────── */
 
-// â”€â”€ Konfiguration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Konfiguration ─────────────────────────────────────────────────────────
 const CLAUDE_MODEL   = 'claude-opus-4-6';
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 const OPENAI_MODEL   = 'gpt-4o-mini';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const DATA_URL       = 'data/exams.json';   // Pfad zur PrÃ¼fungsdaten-Datei
+const DATA_URL       = 'data/exams.json';   // Pfad zur Prüfungsdaten-Datei
 
 const TOPICS = [
   { id:'algorithmen', label:'Algorithmen & Pseudocode', icon:'ALG', keywords:['Algorithmus','Pseudocode','Struktogramm'] },
@@ -22,37 +22,37 @@ const TOPICS = [
   { id:'code',        label:'Code lesen & schreiben', icon:'COD', keywords:['Methode','Funktion','Rueckgabe','Parameter','Schleife'] },
 ];
 
-// Cache fÃ¼r KI-ErklÃ¤rungen â€“ wird in localStorage dauerhaft gespeichert
+// Cache für KI-Erklärungen – wird in localStorage dauerhaft gespeichert
 const theoryCache = JSON.parse(localStorage.getItem('ap2_theory_cache') || '{}');
 function saveTheoryCache() {
   localStorage.setItem('ap2_theory_cache', JSON.stringify(theoryCache));
 }
 
-const SYSTEM_PROMPT = `Du bist ein spezialisierter Lernassistent fÃ¼r den AP2 Teil 2 der IHK-AbschlussprÃ¼fung fÃ¼r Fachinformatiker Anwendungsentwicklung (FIAE).
+const SYSTEM_PROMPT = `Du bist ein spezialisierter Lernassistent für den AP2 Teil 2 der IHK-Abschlussprüfung für Fachinformatiker Anwendungsentwicklung (FIAE).
 
-Dein Fokus liegt AUSSCHLIESSLICH auf dem PrÃ¼fungsteil "Entwicklung und Umsetzung von Algorithmen".
+Dein Fokus liegt AUSSCHLIESSLICH auf dem Prüfungsteil "Entwicklung und Umsetzung von Algorithmen".
 
 Die typischen Themen in AP2 Teil 2 sind:
-1. Algorithmen & Pseudocode â€“ Algorithmen lesen, schreiben, korrigieren (Sortierverfahren, etc.)
-2. Rekursion â€“ Rekursive Algorithmen verstehen, Schreibtischtest durchfÃ¼hren
-3. UML AktivitÃ¤tsdiagramm â€“ Prozesse als AktivitÃ¤tsdiagramm modellieren
-4. Arrays â€“ 1D und 2D Arrays traversieren, auswerten, befÃ¼llen
-5. Datenbanken (SQL) â€“ SELECT mit JOIN, GROUP BY, HAVING, Stored Procedures, Trigger, Indizes
-6. ERM & Relationales Modell â€“ Entity-Relationship-Modell erstellen und in relationales Modell Ã¼berfÃ¼hren
-7. Testing â€“ Unit-Tests, Ã„quivalenzklassen, Grenzwertanalyse, TestfÃ¤lle erstellen
-8. OOP â€“ Klassen implementieren, Vererbung, Methoden
+1. Algorithmen & Pseudocode – Algorithmen lesen, schreiben, korrigieren (Sortierverfahren, etc.)
+2. Rekursion – Rekursive Algorithmen verstehen, Schreibtischtest durchführen
+3. UML Aktivitätsdiagramm – Prozesse als Aktivitätsdiagramm modellieren
+4. Arrays – 1D und 2D Arrays traversieren, auswerten, befüllen
+5. Datenbanken (SQL) – SELECT mit JOIN, GROUP BY, HAVING, Stored Procedures, Trigger, Indizes
+6. ERM & Relationales Modell – Entity-Relationship-Modell erstellen und in relationales Modell überführen
+7. Testing – Unit-Tests, Äquivalenzklassen, Grenzwertanalyse, Testfälle erstellen
+8. OOP – Klassen implementieren, Vererbung, Methoden
 
 Deine Aufgaben:
-- PrÃ¼fungsaufgaben Schritt fÃ¼r Schritt erklÃ¤ren und musterhaft lÃ¶sen
-- Pseudocode/Struktogramme schreiben und erklÃ¤ren
-- SQL-Abfragen schreiben und erklÃ¤ren
-- Schreibtischtests durchfÃ¼hren
-- Typische PrÃ¼fungsfehler benennen
-- Merkhilfen und PrÃ¼fungsstrategien geben
+- Prüfungsaufgaben Schritt für Schritt erklären und musterhaft lösen
+- Pseudocode/Struktogramme schreiben und erklären
+- SQL-Abfragen schreiben und erklären
+- Schreibtischtests durchführen
+- Typische Prüfungsfehler benennen
+- Merkhilfen und Prüfungsstrategien geben
 
-Antworte immer auf Deutsch. Strukturiere Antworten klar mit Ãœberschriften und CodeblÃ¶cken.`;
+Antworte immer auf Deutsch. Strukturiere Antworten klar mit Überschriften und Codeblöcken.`;
 
-// â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── State ─────────────────────────────────────────────────────────────────
 let exams         = [];
 let claudeKey     = localStorage.getItem('ap2_claude_key') || localStorage.getItem('ap2_key') || '';
 let openaiKey     = localStorage.getItem('ap2_openai_key') || '';
@@ -74,17 +74,17 @@ function hasActiveKey(provider = aiProvider) {
   return !!getActiveKey(provider);
 }
 
-// â”€â”€ DOM refs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DOM refs ──────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
-// â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Init ──────────────────────────────────────────────────────────────────
 async function init() {
   setupEvents();
   await loadExams();
   updateKeyBtn();
 }
 
-// â”€â”€ Load exam data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Load exam data ────────────────────────────────────────────────────────
 async function loadExams() {
   if (window.AP2_EMBEDDED_EXAMS && Array.isArray(window.AP2_EMBEDDED_EXAMS.exams)) {
     exams = window.AP2_EMBEDDED_EXAMS.exams;
@@ -130,13 +130,13 @@ async function loadExams() {
   $('sidebarNav').innerHTML = `<div class="nav-placeholder" style="color:#f87171">Fehler beim Laden der Daten<br><small>${esc(msg)}</small></div>`;
 }
 
-// â”€â”€ Home / Welcome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Home / Welcome ────────────────────────────────────────────────────────
 function renderHome() {
   const totalTasks  = exams.reduce((s, e) => s + e.tasks.length, 0);
   const totalPoints = exams.reduce((s, e) => s + e.tasks.reduce((ss, t) => ss + t.points, 0), 0);
 
   $('statsRow').innerHTML = `
-    <div class="stat"><div class="stat-num">${exams.length}</div><div class="stat-lbl">PrÃ¼fungen</div></div>
+    <div class="stat"><div class="stat-num">${exams.length}</div><div class="stat-lbl">Prüfungen</div></div>
     <div class="stat"><div class="stat-num">${totalTasks}</div><div class="stat-lbl">Aufgaben</div></div>
     <div class="stat"><div class="stat-num">${TOPICS.length}</div><div class="stat-lbl">Themen</div></div>
     <div class="stat"><div class="stat-num">${totalPoints}</div><div class="stat-lbl">Punkte</div></div>
@@ -159,13 +159,13 @@ function renderHome() {
     const pts = exam.tasks.reduce((s, t) => s + t.points, 0);
     const card = document.createElement('div');
     card.className = 'exam-card';
-    card.innerHTML = `<div class="ec-year">${exam.year}</div><div class="ec-season">${exam.season}</div><div class="ec-info">${exam.tasks.length} Aufgaben Â· ${pts} Punkte</div>`;
+    card.innerHTML = `<div class="ec-year">${exam.year}</div><div class="ec-season">${exam.season}</div><div class="ec-info">${exam.tasks.length} Aufgaben · ${pts} Punkte</div>`;
     card.addEventListener('click', () => showExamView(exam.id));
     $('examGrid').appendChild(card);
   }
 }
 
-// â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sidebar ───────────────────────────────────────────────────────────────
 function renderSidebar() {
   const nav = $('sidebarNav');
   nav.innerHTML = '';
@@ -179,9 +179,9 @@ function renderSidebar() {
   nav.appendChild(tg);
 
   // Exams group
-  const eg = makeNavGroup('PrÃ¼fungen');
+  const eg = makeNavGroup('Prüfungen');
   for (const exam of exams) {
-    const item = makeNavItem(`ðŸ“„ ${exam.season} ${exam.year}`, () => showExamView(exam.id), `nav-e-${exam.id}`);
+    const item = makeNavItem(`📄 ${exam.season} ${exam.year}`, () => showExamView(exam.id), `nav-e-${exam.id}`);
     eg.appendChild(item);
   }
   nav.appendChild(eg);
@@ -209,7 +209,7 @@ function setActiveNav(navId) {
   if (el) el.classList.add('active');
 }
 
-// â”€â”€ Exam view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Exam view ─────────────────────────────────────────────────────────────
 function showExamView(examId) {
   currentExamId = examId;
   const exam = exams.find(e => e.id === examId);
@@ -218,7 +218,7 @@ function showExamView(examId) {
   showView('exam');
   $('examHeading').textContent = exam.label;
   const pts = exam.tasks.reduce((s, t) => s + t.points, 0);
-  $('examMeta').textContent = `${exam.tasks.length} Aufgaben Â· ${pts} Punkte`;
+  $('examMeta').textContent = `${exam.tasks.length} Aufgaben · ${pts} Punkte`;
   $('taskList').innerHTML = '';
   exam.tasks.forEach((task, i) => {
     const card = buildTaskCard(task, null);
@@ -227,14 +227,14 @@ function showExamView(examId) {
   });
 }
 
-// â”€â”€ Topic view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Topic view ────────────────────────────────────────────────────────────
 function showTopicView(topic) {
   currentExamId = null;
   setActiveNav(`nav-t-${topic.id}`);
   showView('topic');
   $('topicHeading').textContent = `${topic.icon} ${topic.label}`;
 
-  // Theory from Claude â€“ only on demand
+  // Theory from Claude – only on demand
   const box = $('theoryBox');
   box._topic = topic;
   if (hasActiveKey()) {
@@ -243,7 +243,7 @@ function showTopicView(topic) {
       renderTheoryResult(box, theoryCache[topic.id]);
     } else {
       box.className = 'theory-box';
-      box.innerHTML = '<button class="btn-explain" onclick="triggerTheory()">ðŸ¤– KI-ErklÃ¤rung laden</button>';
+      box.innerHTML = '<button class="btn-explain" onclick="triggerTheory()">🤖 KI-Erklärung laden</button>';
     }
   } else {
     box.style.display = 'none';
@@ -268,7 +268,7 @@ function triggerTheory() {
   const topic = box._topic;
   if (!topic) return;
   box.innerHTML = '';
-  box.textContent = 'KI erklÃ¤rt das Themaâ€¦';
+  box.textContent = 'KI erklärt das Thema…';
   box.className = 'theory-box loading';
   streamTheory(topic, box);
 }
@@ -280,7 +280,7 @@ function regenTheory() {
   delete theoryCache[topic.id];
   saveTheoryCache();
   box.innerHTML = '';
-  box.textContent = 'KI erklÃ¤rt das Themaâ€¦';
+  box.textContent = 'KI erklärt das Thema…';
   box.className = 'theory-box loading';
   streamTheory(topic, box);
 }
@@ -288,7 +288,7 @@ function regenTheory() {
 function renderTheoryResult(box, text) {
   box.className = 'theory-box';
   box.innerHTML = `<div class="theory-content">${renderMarkdown(text)}</div>
-    <button class="btn-regenerate" onclick="regenTheory()">ðŸ”„ Neu generieren</button>`;
+    <button class="btn-regenerate" onclick="regenTheory()">🔄 Neu generieren</button>`;
 }
 
 function renderMarkdown(text) {
@@ -356,16 +356,16 @@ function renderMarkdown(text) {
 
 async function streamTheory(topic, container) {
   if (!hasActiveKey()) return;
-  const prompt = `ErklÃ¤re das Thema "${topic.label}" kompakt fÃ¼r die AP2 Teil 2 (FIAE).
+  const prompt = `Erkläre das Thema "${topic.label}" kompakt für die AP2 Teil 2 (FIAE).
 
 Struktur:
 1. Kurze Definition
 2. Warum kommt es in der AP2 vor?
 3. Die wichtigsten Konzepte mit konkreten Beispielen (Pseudocode/SQL/etc.)
 4. Typische Aufgabenstellungen
-5. HÃ¤ufige Fehler vermeiden
+5. Häufige Fehler vermeiden
 
-Bleib prÃ¤gnant und prÃ¼fungsrelevant. Nutze Markdown fÃ¼r Formatierung (## Ãœberschriften, **fett**, \`Code\`, AufzÃ¤hlungen).`;
+Bleib prägnant und prüfungsrelevant. Nutze Markdown für Formatierung (## Überschriften, **fett**, \`Code\`, Aufzählungen).`;
 
   let fullText = '';
   container.textContent = '';
@@ -385,7 +385,7 @@ Bleib prÃ¤gnant und prÃ¼fungsrelevant. Nutze Markdown fÃ¼r Formatierung (#
   }
 }
 
-// â”€â”€ Task card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Task card ─────────────────────────────────────────────────────────────
 /** Gibt nur den Aufgaben-Teil zurück (ohne angehängte Lösungshinweise) */
 function getTaskQuestion(content) {
   const idx = content.search(/Lösungshinweis/i);
@@ -402,7 +402,7 @@ function buildTaskCard(task, examLabel) {
       <div class="task-title">${task.num}. Aufgabe</div>
       <div class="task-meta">
         <span class="pts">${task.points} Punkte</span>
-        <span class="toggle-arrow">â–¼</span>
+        <span class="toggle-arrow">▼</span>
       </div>
     </div>
     <div class="task-body">
@@ -410,10 +410,10 @@ function buildTaskCard(task, examLabel) {
       ${tags.length ? `<div class="task-tags">${tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
       <div class="task-text">${formatTask(questionOnly)}</div>
       <div class="task-actions">
-        <button class="btn-task btn-e">ðŸ” ErklÃ¤ren</button>
-        <button class="btn-task btn-s">ðŸ’¡ MusterlÃ¶sung</button>
-        <button class="btn-task btn-t">ðŸ“Œ Tipps</button>
-        <button class="btn-task btn-check">âœï¸ LÃ¶sung prÃ¼fen</button>
+        <button class="btn-task btn-e">🔍 Erklären</button>
+        <button class="btn-task btn-s">💡 Musterlösung</button>
+        <button class="btn-task btn-t">📌 Tipps</button>
+        <button class="btn-task btn-check">✏️ Lösung prüfen</button>
       </div>
     </div>
   `;
@@ -424,15 +424,15 @@ function buildTaskCard(task, examLabel) {
 
   card.querySelector('.btn-e').addEventListener('click', e => {
     e.stopPropagation();
-    askAI(`ErklÃ¤re mir Schritt fÃ¼r Schritt die ${task.num}. Aufgabe (${task.points} Punkte)${label ? ` aus "${label}"` : ''}:\n\n${task.content}`);
+    askAI(`Erkläre mir Schritt für Schritt die ${task.num}. Aufgabe (${task.points} Punkte)${label ? ` aus "${label}"` : ''}:\n\n${task.content}`);
   });
   card.querySelector('.btn-s').addEventListener('click', e => {
     e.stopPropagation();
-    askAI(`Zeig mir eine vollstÃ¤ndige MusterlÃ¶sung fÃ¼r die ${task.num}. Aufgabe (${task.points} Punkte)${label ? ` aus "${label}"` : ''}:\n\n${task.content}\n\nErklÃ¤re jeden Schritt.`);
+    askAI(`Zeig mir eine vollständige Musterlösung für die ${task.num}. Aufgabe (${task.points} Punkte)${label ? ` aus "${label}"` : ''}:\n\n${task.content}\n\nErkläre jeden Schritt.`);
   });
   card.querySelector('.btn-t').addEventListener('click', e => {
     e.stopPropagation();
-    askAI(`Was sind typische Fehler und wichtige Tipps fÃ¼r die ${task.num}. Aufgabe${label ? ` aus "${label}"` : ''}?\n\n${task.content}`);
+    askAI(`Was sind typische Fehler und wichtige Tipps für die ${task.num}. Aufgabe${label ? ` aus "${label}"` : ''}?\n\n${task.content}`);
   });
 
   card.querySelector('.btn-check').addEventListener('click', e => {
@@ -443,7 +443,7 @@ function buildTaskCard(task, examLabel) {
   return card;
 }
 
-// â”€â”€ Answer panel (LÃ¶sung einreichen & prÃ¼fen) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Answer panel (Lösung einreichen & prüfen) ─────────────────────────────
 function toggleAnswerPanel(card, task, label) {
   let panel = card.querySelector('.answer-panel');
   if (!panel) {
@@ -578,10 +578,10 @@ function createAnswerPanel(task, label) {
 
   return panel;
 }
-const EVAL_SYSTEM_PROMPT = `Du bist ein erfahrener AP2-PrÃ¼fungsexperte fÃ¼r Fachinformatiker Anwendungsentwicklung (FIAE). Bewerte die eingereichte SchÃ¼lerlÃ¶sung sachlich und konstruktiv.
+const EVAL_SYSTEM_PROMPT = `Du bist ein erfahrener AP2-Prüfungsexperte für Fachinformatiker Anwendungsentwicklung (FIAE). Bewerte die eingereichte Schülerlösung sachlich und konstruktiv.
 
 Dein Bewertungsformat (immer auf Deutsch):
-Beginne mit einer klaren EinschÃ¤tzung in der ersten Zeile:
+Beginne mit einer klaren Einschätzung in der ersten Zeile:
 ✅ Richtig  ODER  ⚠️ Teilweise richtig  ODER  ❌ Falsch
 
 Danach strukturiert:
@@ -590,12 +590,12 @@ Danach strukturiert:
 **Tipp zur Verbesserung:** (einen konkreten Hinweis)
 
 Spezifische Hinweise nach Aufgabentyp:
-- UML/AktivitÃ¤tsdiagramm: PrÃ¼fe Startknoten, Endknoten, Aktionen, Entscheidungsknoten (Rauten), ZusammenfÃ¼hrungen, Swimlanes und die logische Abfolge
-- SQL: PrÃ¼fe Syntax, Tabellenauswahl, JOIN-Bedingungen, WHERE/HAVING, GROUP BY, Spaltenausgaben
-- Pseudocode/Algorithmus: PrÃ¼fe Logik, Schleifen, Abbruchbedingungen, Variablen, Randwerte
-- ERM/Relationales Modell: PrÃ¼fe EntitÃ¤ten, Attribute, KardinalitÃ¤ten, PrimÃ¤r- und FremdschlÃ¼ssel
+- UML/Aktivitätsdiagramm: Prüfe Startknoten, Endknoten, Aktionen, Entscheidungsknoten (Rauten), Zusammenführungen, Swimlanes und die logische Abfolge
+- SQL: Prüfe Syntax, Tabellenauswahl, JOIN-Bedingungen, WHERE/HAVING, GROUP BY, Spaltenausgaben
+- Pseudocode/Algorithmus: Prüfe Logik, Schleifen, Abbruchbedingungen, Variablen, Randwerte
+- ERM/Relationales Modell: Prüfe Entitäten, Attribute, Kardinalitäten, Primär- und Fremdschlüssel
 
-Sei prÃ¤zise und lehrreich. Falls ein Bild eingereicht wurde, analysiere es genau.`;
+Sei präzise und lehrreich. Falls ein Bild eingereicht wurde, analysiere es genau.`;
 
 async function evaluateAnswer(panel, task, label, textAnswer, imageData, imageType, part) {
   const feedback = panel.querySelector('.ap-feedback');
@@ -700,7 +700,7 @@ function extractQuestionParts(content) {
   return parts;
 }
 
-// â”€â”€ Claude API (direkt vom Browser) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Claude API (direkt vom Browser) ──────────────────────────────────────
 /**
  * Ruft die Claude API direkt auf und streamt die Antwort.
  * @param {Array}    messages   - Array von {role, content} Objekten
@@ -708,7 +708,7 @@ function extractQuestionParts(content) {
  * @param {string}   [system]   - Optionaler System-Prompt (Default: SYSTEM_PROMPT)
  */
 async function claudeStream(messages, onChunk, system = SYSTEM_PROMPT) {
-  if (!claudeKey) throw new Error('Kein Claude API-Key. Bitte unter âš™ einrichten.');
+  if (!claudeKey) throw new Error('Kein Claude API-Key. Bitte unter ⚙ einrichten.');
 
   const res = await fetch(CLAUDE_API_URL, {
     method: 'POST',
@@ -731,7 +731,7 @@ async function claudeStream(messages, onChunk, system = SYSTEM_PROMPT) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msg = err?.error?.message || `HTTP ${res.status}`;
-    if (res.status === 401) throw new Error('UngÃ¼ltiger Claude API-Key. Bitte prÃ¼fen.');
+    if (res.status === 401) throw new Error('Ungültiger Claude API-Key. Bitte prüfen.');
     throw new Error(msg);
   }
 
@@ -762,7 +762,7 @@ async function claudeStream(messages, onChunk, system = SYSTEM_PROMPT) {
 }
 
 async function openaiStream(messages, onChunk, system = SYSTEM_PROMPT) {
-  if (!openaiKey) throw new Error('Kein ChatGPT API-Key. Bitte unter âš™ einrichten.');
+  if (!openaiKey) throw new Error('Kein ChatGPT API-Key. Bitte unter ⚙ einrichten.');
 
   const res = await fetch(OPENAI_API_URL, {
     method: 'POST',
@@ -780,7 +780,7 @@ async function openaiStream(messages, onChunk, system = SYSTEM_PROMPT) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msg = err?.error?.message || `HTTP ${res.status}`;
-    if (res.status === 401) throw new Error('UngÃ¼ltiger ChatGPT API-Key. Bitte prÃ¼fen.');
+    if (res.status === 401) throw new Error('Ungültiger ChatGPT API-Key. Bitte prüfen.');
     throw new Error(msg);
   }
 
@@ -834,7 +834,7 @@ async function streamAIForEvaluation(prompt, imageData, imageType, onChunk) {
   return claudeStream([{ role: 'user', content }], onChunk, EVAL_SYSTEM_PROMPT);
 }
 
-// â”€â”€ Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Chat ──────────────────────────────────────────────────────────────────
 function askAI(prompt) {
   if (chatMin) toggleChat();
   $('quickBtns').style.display = 'none';
@@ -859,12 +859,12 @@ async function sendChat() {
   appendMsg('user', text);
   chatHistory.push({ role: 'user', content: text });
 
-  // PrÃ¼fungskontext anhÃ¤ngen wenn aktiv
+  // Prüfungskontext anhängen wenn aktiv
   let systemWithContext = SYSTEM_PROMPT;
   if (currentExamId) {
     const exam = exams.find(e => e.id === currentExamId);
     if (exam) {
-      systemWithContext += `\n\nAktuell betrachtete PrÃ¼fung: ${exam.label}\n`;
+      systemWithContext += `\n\nAktuell betrachtete Prüfung: ${exam.label}\n`;
       for (const task of exam.tasks) {
         systemWithContext += `\n${task.num}. Aufgabe (${task.points} Punkte):\n${task.content.slice(0, 800)}\n`;
       }
@@ -914,7 +914,7 @@ function toggleChat() {
   $('chat').classList.toggle('minimized', chatMin);
 }
 
-// â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Search ────────────────────────────────────────────────────────────────
 function doSearch(query) {
   if (query.length < 2) { $('searchDropdown').classList.add('hidden'); return; }
   const q = query.toLowerCase();
@@ -956,7 +956,7 @@ function doSearch(query) {
   $('searchDropdown').classList.remove('hidden');
 }
 
-// â”€â”€ Topic helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Topic helpers ─────────────────────────────────────────────────────────
 function countTasksForTopic(topic) {
   let count = 0;
   for (const exam of exams)
@@ -975,7 +975,7 @@ function findTasksForTopic(topic) {
   return results;
 }
 
-// â”€â”€ View management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── View management ───────────────────────────────────────────────────────
 function showView(name) {
   ['Home','Exam','Topic','Search'].forEach(v =>
     $('view' + v).classList.toggle('hidden', v.toLowerCase() !== name)
@@ -985,7 +985,7 @@ function showView(name) {
   });
 }
 
-// â”€â”€ Settings / API Key â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Settings / API Key ────────────────────────────────────────────────────
 function showModal() {
   $('apiKeyClaude').value = claudeKey;
   $('apiKeyOpenAI').value = openaiKey;
@@ -1001,7 +1001,7 @@ function updateKeyStatus() {
     ks.textContent = `KI aktiv: ${getProviderLabel()}`;
     ks.className = 'key-status ok';
   } else {
-    ks.textContent = `Kein aktiver API-Key fÃ¼r ${getProviderLabel()}`;
+    ks.textContent = `Kein aktiver API-Key für ${getProviderLabel()}`;
     ks.className = 'key-status err';
   }
 }
@@ -1009,10 +1009,10 @@ function updateKeyStatus() {
 function updateKeyBtn() {
   const btn = $('btnSettings');
   if (hasActiveKey()) {
-    btn.textContent = `âœ“ KI aktiv (${aiProvider === 'openai' ? 'ChatGPT' : 'Claude'})`;
+    btn.textContent = `✓ KI aktiv (${aiProvider === 'openai' ? 'ChatGPT' : 'Claude'})`;
     btn.classList.add('active');
   } else {
-    btn.textContent = 'âš™ API-Key einrichten';
+    btn.textContent = '⚙ API-Key einrichten';
     btn.classList.remove('active');
   }
   // Sync sidebar KI indicator
@@ -1020,11 +1020,11 @@ function updateKeyBtn() {
   const status = $('sbKiStatus');
   if (dot)    dot.className    = hasActiveKey() ? 'sb-ki-dot active' : 'sb-ki-dot';
   if (status) status.textContent = hasActiveKey()
-    ? `${getProviderLabel()} aktiv â€“ klicken zum Ã¶ffnen`
-    : `Kein API-Key fÃ¼r ${getProviderLabel()} â€“ klicken zum einrichten`;
+    ? `${getProviderLabel()} aktiv – klicken zum öffnen`
+    : `Kein API-Key für ${getProviderLabel()} – klicken zum einrichten`;
 }
 
-// â”€â”€ Events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Events ────────────────────────────────────────────────────────────────
 function setupEvents() {
   // Sidebar toggle
   $('sidebarToggle').addEventListener('click', () => {
@@ -1036,7 +1036,7 @@ function setupEvents() {
     $('sidebarOpenBtn').classList.add('hidden');
   });
 
-  // Back buttons â†’ home
+  // Back buttons → home
   ['examBack','topicBack','searchBack'].forEach(id => {
     $(id).addEventListener('click', () => { showView('home'); currentExamId = null; });
   });
@@ -1045,7 +1045,7 @@ function setupEvents() {
   $('btnExamAI').addEventListener('click', () => {
     const exam = exams.find(e => e.id === currentExamId);
     if (!exam) return;
-    askAI(`Gib mir einen Ãœberblick Ã¼ber die PrÃ¼fung "${exam.label}": Welche Themen kommen vor, was sind die Schwerpunkte, und wie gehe ich am besten vor?`);
+    askAI(`Gib mir einen Überblick über die Prüfung "${exam.label}": Welche Themen kommen vor, was sind die Schwerpunkte, und wie gehe ich am besten vor?`);
   });
 
   // Chat
@@ -1054,7 +1054,7 @@ function setupEvents() {
   $('chatClear').addEventListener('click', e => {
     e.stopPropagation();
     chatHistory = [];
-    $('chatMsgs').innerHTML = `<div class="msg ai"><div class="bubble">Chat geleert. Was mÃ¶chtest du Ã¼ben?</div></div>`;
+    $('chatMsgs').innerHTML = `<div class="msg ai"><div class="bubble">Chat geleert. Was möchtest du üben?</div></div>`;
     $('quickBtns').style.display = 'flex';
   });
   $('chatSend').addEventListener('click', sendChat);
@@ -1107,7 +1107,7 @@ function setupEvents() {
   });
 }
 
-// â”€â”€ DB Table detection helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DB Table detection helpers ────────────────────────────────────────────
 /** Returns true if a line looks like a database column name */
 function looksLikeColumnName(line) {
   if (!line) return false;
@@ -1118,7 +1118,7 @@ function looksLikeColumnName(line) {
   if (t.includes('_')) return true;         // e.g. Kd_IdKey, MID_Sol
   if (t.includes('/')) return true;         // e.g. Datum/Uhrzeit
   if (/^[A-Z]{2,6}[a-z]{0,2}$/.test(t)) return true; // PID, OID, UTNr, PDNr
-  if (/^[A-ZÃœÃ„Ã–][a-zÃ¼Ã¤Ã¶A-ZÃœÃ„Ã–0-9]{1,20}$/.test(t)) return true; // Datum, Patient
+  if (/^[A-ZÜÄÖ][a-züäöA-ZÜÄÖ0-9]{1,20}$/.test(t)) return true; // Datum, Patient
   return false;
 }
 
@@ -1163,7 +1163,7 @@ function tryParseTable(lines, start) {
     i++;
   }
   // Case 2: standalone word + next line is a strong column ID (e.g. "Pflegearbeit" + "PID")
-  else if (/^[A-ZÃœÃ„Ã–][a-zÃ¼Ã¤Ã¶A-ZÃœÃ„Ã–0-9]+$/.test(t0) && t0.length <= 25) {
+  else if (/^[A-ZÜÄÖ][a-züäöA-ZÜÄÖ0-9]+$/.test(t0) && t0.length <= 25) {
     const nextT = lines[i + 1] ? lines[i + 1].trim() : '';
     if (looksLikeTableStartColumn(nextT)) {
       tableName = t0;
@@ -1172,7 +1172,7 @@ function tryParseTable(lines, start) {
       return null;
     }
   }
-  // Case 3: anonymous table â€“ starts directly with a strong column indicator
+  // Case 3: anonymous table – starts directly with a strong column indicator
   else if (looksLikeTableStartColumn(t0)) {
     tableName = '';
     // i stays at start
@@ -1222,7 +1222,7 @@ function tryParseTable(lines, start) {
     }
   }
 
-  // Consume trailing "â€¦" (ellipsis = more rows exist)
+  // Consume trailing "…" (ellipsis = more rows exist)
   let hadEllipsis = false;
   if (i < lines.length && lines[i].trim() === '\u2026') {
     hadEllipsis = true;
@@ -1246,16 +1246,16 @@ function renderDbTable(t) {
     html += '</tr>';
   }
   html += '</tbody></table></div>';
-  if (t.hadEllipsis) html += '<div class="db-table-more">â€¦ weitere EintrÃ¤ge</div>';
+  if (t.hadEllipsis) html += '<div class="db-table-more">… weitere Einträge</div>';
   html += '</div>';
   return html;
 }
 
-// â”€â”€ Task content formatter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Task content formatter ────────────────────────────────────────────────
 /**
  * Wandelt rohen Aufgaben-Text in strukturiertes HTML um.
  * Erkennt: DB-Tabellen, Hauptfragen (a)/b)/c)), Unterfragen (aa)/ab)),
- * Punkte-Badges, AufzÃ¤hlungen (-), AbschnittsÃ¼berschriften (Wort:).
+ * Punkte-Badges, Aufzählungen (-), Abschnittsüberschriften (Wort:).
  */
 function formatTask(raw) {
   const lines = raw.split('\n');
@@ -1280,12 +1280,12 @@ function formatTask(raw) {
       continue;
     }
 
-    // â”€â”€ DB Table detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── DB Table detection ────────────────────────────────────────────
     {
       const nextLine = i < lines.length ? lines[i].trim() : '';
       const shouldTryTable =
         /^Tabelle:\s/.test(line) ||
-        (/^[A-ZÃœÃ„Ã–][a-zÃ¼Ã¤Ã¶A-ZÃœÃ„Ã–0-9]+$/.test(line) && line.length <= 25 &&
+        (/^[A-ZÜÄÖ][a-züäöA-ZÜÄÖ0-9]+$/.test(line) && line.length <= 25 &&
           looksLikeTableStartColumn(nextLine)) ||
         (looksLikeTableStartColumn(line) && looksLikeColumnName(nextLine));
 
@@ -1300,10 +1300,10 @@ function formatTask(raw) {
       }
     }
 
-    // â”€â”€ Hauptfrage: Zeile ist nur "a)" / "b)" / "c)" usw. â”€â”€
+    // ── Hauptfrage: Zeile ist nur "a)" / "b)" / "c)" usw. ──
     if (/^[a-z]\)$/.test(line)) {
       flushBullets(bullets);
-      // NÃ¤chste nicht-leere Zeile ist der Fragetext
+      // Nächste nicht-leere Zeile ist der Fragetext
       let questionText = '';
       while (i < lines.length && !lines[i].trim()) i++;
       if (i < lines.length) {
@@ -1318,7 +1318,7 @@ function formatTask(raw) {
       continue;
     }
 
-    // â”€â”€ Unterfrage: Zeile beginnt mit "aa)" / "ab)" / "ba)" usw. â”€â”€
+    // ── Unterfrage: Zeile beginnt mit "aa)" / "ab)" / "ba)" usw. ──
     const subMatch = line.match(/^([a-z]{2})\)\s*(.*)/);
     if (subMatch) {
       flushBullets(bullets);
@@ -1331,7 +1331,7 @@ function formatTask(raw) {
       continue;
     }
 
-    // â”€â”€ Punkte-Badge alleine auf einer Zeile: "(3 Punkte)" â”€â”€
+    // ── Punkte-Badge alleine auf einer Zeile: "(3 Punkte)" ──
     const ptsAlone = line.match(/^\((\d+)\s*Punkte?\)$/i);
     if (ptsAlone) {
       flushBullets(bullets);
@@ -1339,20 +1339,20 @@ function formatTask(raw) {
       continue;
     }
 
-    // â”€â”€ AufzÃ¤hlung: beginnt mit "- " oder "â€¢ " â”€â”€
-    if (/^[-â€¢]\s+/.test(line)) {
-      bullets.push(line.replace(/^[-â€¢]\s+/, ''));
+    // ── Aufzählung: beginnt mit "- " oder "• " ──
+    if (/^[-•]\s+/.test(line)) {
+      bullets.push(line.replace(/^[-•]\s+/, ''));
       continue;
     }
 
-    // â”€â”€ AbschnittsÃ¼berschrift: kurze Zeile die mit ":" endet â”€â”€
+    // ── Abschnittsüberschrift: kurze Zeile die mit ":" endet ──
     if (line.endsWith(':') && line.length < 60 && !line.includes('(')) {
       flushBullets(bullets);
       out.push(`<div class="tq-section">${esc(line)}</div>`);
       continue;
     }
 
-    // â”€â”€ Normaler Text â”€â”€
+    // ── Normaler Text ──
     flushBullets(bullets);
     out.push(`<p class="tq-para">${inlineFormat(line)}</p>`);
   }
@@ -1361,19 +1361,19 @@ function formatTask(raw) {
   return out.join('');
 }
 
-/** Inline-Formatierung: Punkte fett, SchlÃ¼sselbegriffe hervorheben */
+/** Inline-Formatierung: Punkte fett, Schlüsselbegriffe hervorheben */
 function inlineFormat(text) {
   return esc(text)
-    // (X Punkte) â†’ Badge
+    // (X Punkte) → Badge
     .replace(/\((\d+)\s*Punkte?\)/gi, '<span class="tq-pts">$1 Pkt.</span>')
-    // Variante 1 / Variante 2 â†’ hervorheben
+    // Variante 1 / Variante 2 → hervorheben
     .replace(/(Variante\s+\d+)/g, '<strong>$1</strong>')
-    // SQL-Keywords â†’ code
+    // SQL-Keywords → code
     .replace(/\b(SELECT|FROM|WHERE|JOIN|GROUP BY|HAVING|ORDER BY|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|INNER|LEFT|RIGHT|ON|AS)\b/g,
       '<code class="sql-kw">$1</code>');
 }
 
-// â”€â”€ Utils â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Utils ─────────────────────────────────────────────────────────────────
 function esc(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -1381,7 +1381,7 @@ function escRe(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 }
 
-// â”€â”€ Start â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Start ─────────────────────────────────────────────────────────────────
 init();
 
 
