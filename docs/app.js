@@ -350,8 +350,15 @@ Bleib prägnant und prüfungsrelevant. Nutze Markdown für Formatierung (## Übe
 }
 
 // ── Task card ─────────────────────────────────────────────────────────────
+/** Gibt nur den Aufgaben-Teil zurück (ohne angehängte Lösungshinweise) */
+function getTaskQuestion(content) {
+  const idx = content.search(/Lösungshinweis/i);
+  return idx > 0 ? content.slice(0, idx).trimEnd() : content;
+}
+
 function buildTaskCard(task, examLabel) {
   const tags = detectTags(task.content);
+  const questionOnly = getTaskQuestion(task.content);
   const card = document.createElement('div');
   card.className = 'task-card';
   card.innerHTML = `
@@ -365,7 +372,7 @@ function buildTaskCard(task, examLabel) {
     <div class="task-body">
       ${examLabel ? `<div class="exam-ref">${examLabel}</div>` : ''}
       ${tags.length ? `<div class="task-tags">${tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
-      <div class="task-text">${formatTask(task.content)}</div>
+      <div class="task-text">${formatTask(questionOnly)}</div>
       <div class="task-actions">
         <button class="btn-task btn-e">🔍 Erklären</button>
         <button class="btn-task btn-s">💡 Musterlösung</button>
